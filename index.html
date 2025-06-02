@@ -1,12 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Card Game Hub</title>
   <link rel="stylesheet" href="style.css" />
-  <script type="module" src="script.js" defer></script>
-</head>
+  <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-analytics.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-auth.js"></script>
+
+  <script>
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+    const firebaseConfig = {
+      apiKey: "AIzaSyAPtAHSEYvgcOSysCpQzHQ3ACwKcFRB_ww",
+      authDomain: "cardgame-614ae.firebaseapp.com",
+      projectId: "cardgame-614ae",
+      storageBucket: "cardgame-614ae.firebasestorage.app",
+      messagingSenderId: "754518248357",
+      appId: "1:754518248357:web:8bc68ca524f65f22ab764c",
+      measurementId: "G-LQ6YN7HNMM"
+    };
+    // Also explicitly set the appId, which is used in your database path.
+    const myAppId = "1:754518248357:web:8bc68ca524f65f22ab764c"; // This should be the same as 'appId' inside myFirebaseConfig
+  </script>
+
 <body>
   <h1>Card Game Hub</h1>
 
@@ -52,7 +71,7 @@
       <div id="players-in-lobby">
         <h3>Players in Lobby:</h3>
         <ul id="lobby-player-list">
-          </ul>
+        </ul>
       </div>
     </div>
     <button id="lobby-back-button">Back to Menu</button>
@@ -69,7 +88,8 @@
       <div id="doudizhu-center-area">
         <div class="doudizhu-hand-label" id="doudizhu-center-label">Played Cards</div>
         <div id="doudizhu-played-cards" class="doudizhu-hand played-cards-hand"></div>
-        <div id="doudizhu-current-pattern" style="display: none;">Current Pattern: <span id="doudizhu-pattern-text">None</span></div>
+        <div id="doudizhu-current-pattern" style="display: none;">Current Pattern: <span
+            id="doudizhu-pattern-text">None</span></div>
       </div>
 
       <div class="doudizhu-opponent-area doudizhu-opponent-right">
@@ -94,4 +114,5 @@
     <button id="doudizhu-game-back-button">Back to Menu</button>
   </div>
 </body>
+
 </html>
