@@ -1,9 +1,5 @@
-// script.js
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, addDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
 // --- Firebase Initialization (Global) ---
+// These variables will be initialized by the Canvas environment.
 let app;
 let db;
 let auth;
@@ -11,22 +7,50 @@ let currentUserId = null;
 let currentUserName = "Player"; // Default name, could be randomized or user-input later
 let currentGameId = null; // Stores the ID of the current game room
 
-// Get Firebase config from the environment
+// Get Firebase config and app ID from the Canvas environment
+// These are special variables provided by the Canvas for Firebase integration.
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
 console.log("Firebase Config (on script load):", firebaseConfig); // DEBUG: Check if config is loaded
 console.log("App ID (on script load):", appId); // DEBUG: Check if app ID is loaded
 
-// Initialize Firebase only once
-if (Object.keys(firebaseConfig).length > 0) {
-    app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    auth = getAuth(app);
-    console.log("Firebase initialized:", !!app, !!db, !!auth); // DEBUG: Confirm Firebase objects
+// Function to handle Firebase sign-in
+async function firebaseSignIn() {
+    try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            // Use signInWithCustomToken if a token is provided by the Canvas
+            await auth.signInWithCustomToken(__initial_auth_token);
+            console.log("Firebase: Signed in with custom token.");
+        } else {
+            // Otherwise, sign in anonymously
+            await auth.signInAnonymously();
+            console.log("Firebase: Signed in anonymously.");
+        }
+    } catch (error) {
+        console.error("Firebase Auth Error during sign-in:", error);
+        // Retry after a delay if sign-in fails
+        setTimeout(() => {
+            console.log("Firebase: Retrying anonymous sign-in...");
+            firebaseSignIn();
+        }, 3000); // Retry after 3 seconds
+        // Using alert for user feedback, as per instructions.
+        alert("Failed to sign in to Firebase. Some features may not work. Retrying...");
+    }
+}
 
-    // Sign in anonymously or with custom token
-    onAuthStateChanged(auth, async (user) => {
+// Initialize Firebase only once if config is available
+if (Object.keys(firebaseConfig).length > 0) {
+    // Initialize the Firebase app using the global 'firebase' object (Namespaced API)
+    app = firebase.initializeApp(firebaseConfig);
+    // Get Firestore and Auth instances from the initialized app
+    db = firebase.firestore(app);
+    auth = firebase.auth(app); // Use firebase.auth(app) for the namespaced API
+
+    console.log("Firebase initialized:", !!app, !!db, !!auth); // DEBUG: Confirm Firebase objects are valid
+
+    // Listen for authentication state changes
+    auth.onAuthStateChanged(async (user) => {
         if (user) {
             currentUserId = user.uid;
             console.log("Firebase: Signed in as", currentUserId);
@@ -36,25 +60,14 @@ if (Object.keys(firebaseConfig).length > 0) {
                 userIdSpan.innerText = currentUserId;
             }
         } else {
-            console.log("Firebase: No user signed in. Attempting anonymous sign-in...");
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                    console.log("Firebase: Signed in with custom token.");
-                } else {
-                    await signInAnonymously(auth);
-                    console.log("Firebase: Signed in anonymously.");
-                }
-            } catch (error) {
-                console.error("Firebase Auth Error:", error);
-                alert("Failed to sign in to Firebase. Some features may not work.");
-            }
+            console.log("Firebase: No user signed in. Initiating sign-in...");
+            firebaseSignIn(); // Call the sign-in function
         }
     });
 } else {
+    // Fallback for environments where Firebase config is not provided (e.g., local file system without a server)
     console.warn("Firebase config not found. Running in standalone mode (Multiplayer Doudizhu will not work).");
-    // Fallback for non-Firebase environment: set a dummy user ID
-    currentUserId = 'local-user-' + Math.random().toString(36).substring(2, 9);
+    currentUserId = 'local-user-' + Math.random().toString(36).substring(2, 9); // Generate a dummy user ID
     const userIdSpan = document.getElementById('current-user-id');
     if (userIdSpan) {
         userIdSpan.innerText = currentUserId;
@@ -899,7 +912,8 @@ function returnToMenu() {
   focusedCardIndex = -1;
   playTurnButton.disabled = false;
   playTurnButton.style.display = 'none';
-  console.log("returnToMenu: playTurnButton.style.display set to 'none'."); // DEBUG
+  playTurnButton.onclick = null; // Explicitly clear handler
+  console.log("returnToMenu: playTurnButton.style.display set to 'none', onclick cleared."); // DEBUG
 
   // Hide specific Blackjack buttons
   if (hitButton) hitButton.style.display = 'none';
@@ -981,7 +995,8 @@ function showScreen(screenId, title = '') {
   // Reset common game controls (for War/Blackjack)
   playTurnButton.disabled = false;
   playTurnButton.style.display = 'none';
-  console.log(`showScreen(${screenId}): playTurnButton.style.display set to 'none'.`); // DEBUG
+  playTurnButton.onclick = null; // Explicitly clear handler
+  console.log(`showScreen(${screenId}): playTurnButton.style.display set to 'none', onclick cleared.`); // DEBUG
 
   if (hitButton) hitButton.style.display = 'none';
   if (standButton) standButton.style.display = 'none';
@@ -1027,7 +1042,8 @@ async function createGame() {
 
     lobbyMessage.innerText = "Creating game...";
     try {
-        const newGameRef = doc(collection(db, `artifacts/${appId}/public/games`));
+        // Correct way to get a new document reference in Firestore (Namespaced API)
+        const newGameRef = db.collection(`artifacts/${appId}/public/games`).doc();
         const newGameId = newGameRef.id;
 
         const initialGameState = {
@@ -1054,7 +1070,7 @@ async function createGame() {
             passesInRound: 0
         };
 
-        await setDoc(newGameRef, initialGameState);
+        await newGameRef.set(initialGameState); // Use .set() on the document reference
         currentGameId = newGameId;
         lobbyMessage.innerText = `Game created! Share code: ${newGameId}`;
         displayGameCodeSpan.innerText = newGameId;
@@ -1088,10 +1104,11 @@ async function joinGame() {
 
     lobbyMessage.innerText = `Joining game ${gameCode}...`;
     try {
-        const gameRef = doc(db, `artifacts/${appId}/public/games/${gameCode}`);
-        const gameSnap = await getDoc(gameRef);
+        // Correct way to get a document reference in Firestore (Namespaced API)
+        const gameRef = db.collection(`artifacts/${appId}/public/games`).doc(gameCode);
+        const gameSnap = await gameRef.get();
 
-        if (!gameSnap.exists()) {
+        if (!gameSnap.exists) { // Use .exists property for namespaced API
             lobbyMessage.innerText = "Game not found.";
             return;
         }
@@ -1137,7 +1154,7 @@ async function joinGame() {
 
         const newPlayerOrder = [...gameData.playerOrder, currentUserId];
 
-        await updateDoc(gameRef, {
+        await gameRef.update({ // Use .update() on the document reference
             players: newPlayers,
             playerOrder: newPlayerOrder
         });
@@ -1162,9 +1179,10 @@ function listenToGame(gameId) {
         doudizhuGameUnsubscribe(); // Unsubscribe from previous game if any
     }
 
-    const gameRef = doc(db, `artifacts/${appId}/public/games/${gameId}`);
-    doudizhuGameUnsubscribe = onSnapshot(gameRef, (docSnap) => {
-        if (docSnap.exists()) {
+    // Correct way to get a document reference and listen for snapshots (Namespaced API)
+    const gameRef = db.collection(`artifacts/${appId}/public/games`).doc(gameId);
+    doudizhuGameUnsubscribe = gameRef.onSnapshot((docSnap) => {
+        if (docSnap.exists) { // Use .exists property for namespaced API
             const data = docSnap.data();
             // Convert card data back to Card objects
             const deserializedData = {
@@ -1184,6 +1202,7 @@ function listenToGame(gameId) {
             doudizhuGameState = deserializedData;
             console.log("Game state updated:", doudizhuGameState);
             updateDoudizhuLobbyAndGameUI(); // Update UI based on new state
+            processBids(); // Call processBids when game state updates to check for landlord
         } else {
             console.log("Game document no longer exists.");
             alert("The game has ended or was deleted.");
@@ -1290,7 +1309,8 @@ async function dealCardsAndStartBidding() {
     if (doudizhuGameState.gameStarted) return;
 
     console.log("Dealing cards and starting bidding...");
-    const gameRef = doc(db, `artifacts/${appId}/public/games/${currentGameId}`);
+    // Correct way to get a document reference (Namespaced API)
+    const gameRef = db.collection(`artifacts/${appId}/public/games`).doc(currentGameId);
 
     const deck = new Deck({ numDecks: 1, includeJokers: true, gameType: 'doudizhu' });
     deck.shuffle();
@@ -1328,7 +1348,7 @@ async function dealCardsAndStartBidding() {
     const firstBidderUserId = doudizhuGameState.playerOrder[firstBidderIndex];
 
     try {
-        await updateDoc(gameRef, {
+        await gameRef.update({ // Use .update() on the document reference
             gameStarted: true,
             gameState: 'bidding',
             landlordPile: tempLandlordPile,
@@ -1358,14 +1378,15 @@ async function handleBid(bid) {
         return;
     }
 
-    const gameRef = doc(db, `artifacts/${appId}/public/games/${currentGameId}`);
+    // Correct way to get a document reference (Namespaced API)
+    const gameRef = db.collection(`artifacts/${appId}/public/games`).doc(currentGameId);
     const updatedBids = { ...doudizhuGameState.bids, [currentUserId]: bid };
 
     let nextBidderIndex = (doudizhuGameState.playerOrder.indexOf(currentUserId) + 1) % 3;
     let nextBidderUserId = doudizhuGameState.playerOrder[nextBidderIndex];
 
     try {
-        await updateDoc(gameRef, {
+        await gameRef.update({ // Use .update() on the document reference
             bids: updatedBids,
             currentTurnUserId: nextBidderUserId // Pass turn immediately
         });
@@ -1380,7 +1401,8 @@ async function handleBid(bid) {
 async function processBids() {
     if (!db || !currentGameId || doudizhuGameState.gameState !== 'bidding') return;
 
-    const gameRef = doc(db, `artifacts/${appId}/public/games/${currentGameId}`);
+    // Correct way to get a document reference (Namespaced API)
+    const gameRef = db.collection(`artifacts/${appId}/public/games`).doc(currentGameId);
     const bidsReceived = Object.values(doudizhuGameState.bids).filter(b => b !== null).length;
     const calledLandlordPlayers = doudizhuGameState.playerOrder.filter(userId => doudizhuGameState.bids[userId] === true);
 
@@ -1395,7 +1417,7 @@ async function processBids() {
             // Reset game state and deal again (only creator should do this to avoid race conditions)
             if (currentUserId === doudizhuGameState.playerOrder[0]) {
                 setTimeout(async () => {
-                    await updateDoc(gameRef, { gameStarted: false, gameState: 'lobby', players: {} }); // Reset to lobby
+                    await gameRef.update({ gameStarted: false, gameState: 'lobby', players: {} }); // Reset to lobby
                     // The onSnapshot will then trigger a new deal
                 }, 2000);
             }
@@ -1421,7 +1443,7 @@ async function processBids() {
             };
 
             try {
-                await updateDoc(gameRef, {
+                await gameRef.update({ // Use .update() on the document reference
                     gameState: 'playing',
                     landlordUserId: finalLandlordUserId,
                     players: updatedPlayers,
@@ -1520,7 +1542,8 @@ async function playDoudizhuCards() {
         // Remove played cards from player's hand (local copy for update)
         let updatedPlayerHand = doudizhuGameState.players[currentUserId].hand.filter(card => !selectedCards.some(sCard => sCard.suit === card.suit && sCard.rank === card.rank));
 
-        const gameRef = doc(db, `artifacts/${appId}/public/games/${currentGameId}`);
+        // Correct way to get a document reference (Namespaced API)
+        const gameRef = db.collection(`artifacts/${appId}/public/games`).doc(currentGameId);
         const updatedPlayers = {
             ...doudizhuGameState.players,
             [currentUserId]: {
@@ -1533,7 +1556,7 @@ async function playDoudizhuCards() {
         let newPassesInRound = 0; // Reset passes if a valid play is made
 
         try {
-            await updateDoc(gameRef, {
+            await gameRef.update({ // Use .update() on the document reference
                 players: updatedPlayers,
                 lastPlayedCards: selectedCards.map(c => c.toFirestore()), // Convert to plain objects
                 lastPlayedPattern: newPattern,
@@ -1545,7 +1568,7 @@ async function playDoudizhuCards() {
             // Check for win condition (player has no cards left)
             if (updatedPlayerHand.length === 0) {
                 console.log("Player won!");
-                await updateDoc(gameRef, {
+                await gameRef.update({ // Use .update() on the document reference
                     gameState: 'game_over',
                     currentTurnUserId: null // No more turns
                 });
@@ -1576,7 +1599,8 @@ async function passDoudizhuTurn() {
     const selectedElements = doudizhuPlayerHandDiv.querySelectorAll('.card.selected');
     selectedElements.forEach(el => el.classList.remove('selected'));
 
-    const gameRef = doc(db, `artifacts/${appId}/public/games/${currentGameId}`);
+    // Correct way to get a document reference (Namespaced API)
+    const gameRef = db.collection(`artifacts/${appId}/public/games`).doc(currentGameId);
     let nextTurnUserId = getNextPlayerUserId();
     let newPassesInRound = doudizhuGameState.passesInRound + 1;
 
@@ -1597,7 +1621,7 @@ async function passDoudizhuTurn() {
 
 
     try {
-        await updateDoc(gameRef, {
+        await gameRef.update({ // Use .update() on the document reference
             currentTurnUserId: nextTurnUserId,
             passesInRound: newPassesInRound,
             lastPlayedPattern: updatedLastPlayedPattern, // Update if board was cleared
@@ -1748,7 +1772,7 @@ function isTripletWithPair(cards) {
         if (counts.size === 2) {
             let tripletValue = -1;
             let pairValue = -1;
-            for (const [value, count] = counts.entries()) {
+            for (const [value, count] of counts.entries()) {
                 if (count === 3) tripletValue = value;
                 else if (count === 2) pairValue = value;
             }
