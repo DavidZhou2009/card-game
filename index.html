@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Card Game Hub</title>
+  <link rel="stylesheet" href="style.css" />
+  <script type="module" src="script.js" defer></script>
+</head>
+<body>
+  <h1>Card Game Hub</h1>
+
+  <div id="menu-screen">
+    <button id="play-war-button">Play War</button>
+    <button id="play-blackjack-button">Play Blackjack</button>
+    <button id="view-deck-button">View Deck</button>
+    <button id="play-doudizhu-button">Play Multiplayer Doudizhu</button>
+  </div>
+
+  <div id="game-screen" style="display: none;">
+    <h2 id="game-title"></h2>
+    <div id="game-area">
+      <div class="player-info" id="enemy-player-info">
+        <span class="player-label">Opponent's Cards:</span>
+        <span id="enemy-card-count" class="card-count"></span>
+      </div>
+      <div class="hand" id="enemy-hand"></div>
+
+      <div class="player-info" id="player-player-info">
+        <span class="player-label">Your Cards:</span>
+        <span id="player-card-count" class="card-count"></span>
+      </div>
+      <div class="hand" id="player-hand"></div>
+
+      <button id="play-turn" style="display: none;">Play Turn</button>
+    </div>
+    <div id="result"></div>
+    <button id="back-button">Back to Menu</button>
+  </div>
+
+  <div id="doudizhu-lobby-screen" style="display: none;">
+    <h2>Doudizhu Lobby</h2>
+    <p>Your User ID: <span id="current-user-id">Loading...</span></p>
+    <div class="lobby-actions">
+      <input type="text" id="game-code-input" placeholder="Enter Game Code" />
+      <button id="join-game-button">Join Game</button>
+      <button id="create-game-button">Create New Game</button>
+    </div>
+    <div id="lobby-info">
+      <p id="lobby-message"></p>
+      <p id="current-game-code" style="display: none;">Game Code: <span id="display-game-code"></span></p>
+      <div id="players-in-lobby">
+        <h3>Players in Lobby:</h3>
+        <ul id="lobby-player-list">
+          </ul>
+      </div>
+    </div>
+    <button id="lobby-back-button">Back to Menu</button>
+  </div>
+
+  <div id="doudizhu-game-screen" style="display: none;">
+    <h2 id="doudizhu-game-title">Doudizhu</h2>
+    <div id="doudizhu-game-area">
+      <div class="doudizhu-opponent-area doudizhu-opponent-top">
+        <div class="doudizhu-hand-label" id="opponent1-label">Opponent 1</div>
+        <div id="doudizhu-opponent1-hand" class="doudizhu-hand opponent-hand"></div>
+      </div>
+
+      <div id="doudizhu-center-area">
+        <div class="doudizhu-hand-label" id="doudizhu-center-label">Played Cards</div>
+        <div id="doudizhu-played-cards" class="doudizhu-hand played-cards-hand"></div>
+        <div id="doudizhu-current-pattern" style="display: none;">Current Pattern: <span id="doudizhu-pattern-text">None</span></div>
+      </div>
+
+      <div class="doudizhu-opponent-area doudizhu-opponent-right">
+        <div class="doudizhu-hand-label" id="opponent2-label">Opponent 2</div>
+        <div id="doudizhu-opponent2-hand" class="doudizhu-hand opponent-hand"></div>
+      </div>
+
+      <div class="doudizhu-player-area">
+        <div class="doudizhu-hand-label">Your Hand</div>
+        <div id="doudizhu-player-hand" class="doudizhu-hand player-hand"></div>
+        <div id="doudizhu-action-buttons">
+          <button id="doudizhu-play-button" style="display: none;">Play Cards</button>
+          <button id="doudizhu-pass-button" style="display: none;">Pass</button>
+        </div>
+        <div id="doudizhu-bidding-buttons" style="display: none;">
+          <button id="doudizhu-call-landlord-button">Call Landlord</button>
+          <button id="doudizhu-dont-call-button">Don't Call</button>
+        </div>
+      </div>
+    </div>
+    <div id="doudizhu-result"></div>
+    <button id="doudizhu-game-back-button">Back to Menu</button>
+  </div>
+</body>
+</html>
