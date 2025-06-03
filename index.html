@@ -6,28 +6,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Card Game Hub</title>
   <link rel="stylesheet" href="style.css" />
+
   <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-analytics.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-auth.js"></script>
 
   <script>
-    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-    const firebaseConfig = {
-      apiKey: "AIzaSyAPtAHSEYvgcOSysCpQzHQ3ACwKcFRB_ww",
-      authDomain: "cardgame-614ae.firebaseapp.com",
-      projectId: "cardgame-614ae",
-      storageBucket: "cardgame-614ae.firebasestorage.app",
-      messagingSenderId: "754518248357",
-      appId: "1:754518248357:web:8bc68ca524f65f22ab764c",
-      measurementId: "G-LQ6YN7HNMM"
+    // Replace these placeholder values with YOUR ACTUAL Firebase project configuration.
+    // You can find this in your Firebase Console -> Project settings -> Your apps -> Web app -> Config.
+    // IMPORTANT: REMOVE 'const' TO MAKE THESE VARIABLES GLOBAL
+    firebaseConfig = { // Changed from 'const firebaseConfig' to make it global
+      apiKey: "AIzaSyAPtAHSEYvgcOSysCpQzHQ3ACwKcFRB_ww", // <--- REPLACE THIS WITH YOURS
+      authDomain: "cardgame-614ae.firebaseapp.com", // <--- REPLACE THIS WITH YOURS
+      projectId: "cardgame-614ae", // <--- REPLACE THIS WITH YOURS
+      storageBucket: "cardgame-614ae.firebasestorage.app", // <--- REPLACE THIS WITH YOURS
+      messagingSenderId: "754518248357", // <--- REPLACE THIS WITH YOURS
+      appId: "1:754518248357:web:8bc68ca524f65f22ab764c", // <--- REPLACE THIS WITH YOURS
+      measurementId: "G-LQ6YN7HNMM" // <--- REPLACE THIS WITH YOURS (Optional, if you enabled Analytics)
     };
-    // Also explicitly set the appId, which is used in your database path.
-    const myAppId = "1:754518248357:web:8bc68ca524f65f22ab764c"; // This should be the same as 'appId' inside myFirebaseConfig
-  </script>
 
-<body>
-  <h1>Card Game Hub</h1>
+    // This specific appId is used in your Firestore collection paths (e.g., artifacts/{appId}/public/games)
+    // It should be the same as the appId within your firebaseConfig object.
+    // IMPORTANT: REMOVE 'const' TO MAKE THIS VARIABLE GLOBAL
+    myAppId = "1:754518248357:web:8bc68ca524f65f22ab764c"; // <--- REPLACE THIS WITH YOURS
+  </script>
+  </head>
+<body> <h1>Card Game Hub</h1>
 
   <div id="menu-screen">
     <button id="play-war-button">Play War</button>
@@ -71,7 +76,7 @@
       <div id="players-in-lobby">
         <h3>Players in Lobby:</h3>
         <ul id="lobby-player-list">
-        </ul>
+          </ul>
       </div>
     </div>
     <button id="lobby-back-button">Back to Menu</button>
@@ -113,6 +118,10 @@
     <div id="doudizhu-result"></div>
     <button id="doudizhu-game-back-button">Back to Menu</button>
   </div>
+
+  <script src="script.js"></script>
 </body>
 
 </html>
+```
+After updating your `index.html` with this corrected version, please commit and push these changes to your GitHub repository. This should resolve the issues you're experienci
