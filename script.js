@@ -315,7 +315,7 @@ function initializeFirebase() {
     }
     return false;
   }
-  if (!firebaseConfig || !Object.keys(firebaseConfig).length || !firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.appId) {
+  if (!window.firebaseConfig || !Object.keys(window.firebaseConfig).length || !window.firebaseConfig.apiKey || !window.firebaseConfig.projectId || !window.firebaseConfig.appId) {
     console.warn("Invalid or missing Firebase config. Running in standalone mode.");
     currentUserId = 'local-user-' + Math.random().toString(36).substring(2, 9);
     const userIdSpan = document.getElementById('current-user-id');
@@ -325,7 +325,7 @@ function initializeFirebase() {
     return false;
   }
   try {
-    app = firebase.initializeApp(firebaseConfig);
+    app = firebase.initializeApp(window.firebaseConfig);
     db = firebase.firestore(app);
     auth = firebase.auth(app);
     console.log("Firebase initialized successfully.");
@@ -366,7 +366,7 @@ function updateDoudizhuLobbyAndGameUI() {
     const playerList = document.getElementById('lobby-player-list');
     playerList.innerHTML = '';
     if (db && doudizhuGameState.gameId) {
-      db.collection(`artifacts/${myAppId}/public/games`).doc(doudizhuGameState.gameId).get().then(doc => {
+      db.collection(`artifacts/${window.myAppId}/public/games`).doc(doudizhuGameState.gameId).get().then(doc => {
         if (doc.exists) {
           const players = doc.data().players || [];
           players.forEach(player => {
@@ -410,7 +410,7 @@ function updateDoudizhuLobbyAndGameUI() {
       }
     }
     if (db && doudizhuGameState.gameId) {
-      db.collection(`artifacts/${myAppId}/public/games`).doc(doudizhuGameState.gameId).onSnapshot(doc => {
+      db.collection(`artifacts/${window.myAppId}/public/games`).doc(doudizhuGameState.gameId).onSnapshot(doc => {
         if (doc.exists) {
           const data = doc.data();
           doudizhuGameState = { ...doudizhuGameState, ...data };
@@ -439,7 +439,7 @@ function createGame() {
     passes: 0,
     lastPlayedBy: null
   };
-  db.collection(`artifacts/${myAppId}/public/games`).doc(gameId).set(gameData).then(() => {
+  db.collection(`artifacts/${window.myAppId}/public/games`).doc(gameId).set(gameData).then(() => {
     doudizhuGameState.gameId = gameId;
     updateDoudizhuLobbyAndGameUI();
   }).catch(error => {
@@ -458,7 +458,7 @@ function joinGame() {
     document.getElementById('lobby-message').innerText = 'Please enter a game code.';
     return;
   }
-  db.collection(`artifacts/${myAppId}/public/games`).doc(gameId).get().then(doc => {
+  db.collection(`artifacts/${window.myAppId}/public/games`).doc(gameId).get().then(doc => {
     if (doc.exists) {
       const gameData = doc.data();
       if (gameData.players.length >= 3) {
@@ -471,7 +471,7 @@ function joinGame() {
         return;
       }
       gameData.players.push({ id: currentUserId });
-      db.collection(`artifacts/${myAppId}/public/games`).doc(gameId).update({ players: gameData.players }).then(() => {
+      db.collection(`artifacts/${window.myAppId}/public/games`).doc(gameId).update({ players: gameData.players }).then(() => {
         doudizhuGameState.gameId = gameId;
         updateDoudizhuLobbyAndGameUI();
       });
@@ -486,7 +486,7 @@ function joinGame() {
 
 function startDoudizhuGame() {
   if (!db || !doudizhuGameState.gameId) return;
-  db.collection(`artifacts/${myAppId}/public/games`).doc(doudizhuGameState.gameId).get().then(doc => {
+  db.collection(`artifacts/${window.myAppId}/public/games`).doc(doudizhuGameState.gameId).get().then(doc => {
     if (doc.exists && doc.data().players.length === 3) {
       const deck = new Deck(true);
       deck.shuffle();
@@ -507,7 +507,7 @@ function startDoudizhuGame() {
         passes: 0,
         lastPlayedBy: null
       };
-      db.collection(`artifacts/${myAppId}/public/games`).doc(doudizhuGameState.gameId).update(gameData).then(() => {
+      db.collection(`artifacts/${window.myAppId}/public/games`).doc(doudizhuGameState.gameId).update(gameData).then(() => {
         updateDoudizhuLobbyAndGameUI();
       });
     }
@@ -516,7 +516,7 @@ function startDoudizhuGame() {
 
 function handleBid(callLandlord) {
   if (!db || !doudizhuGameState.gameId) return;
-  db.collection(`artifacts/${myAppId}/public/games`).doc(doudizhuGameState.gameId).get().then(doc => {
+  db.collection(`artifacts/${window.myAppId}/public/games`).doc(doudizhuGameState.gameId).get().then(doc => {
     if (doc.exists) {
       const data = doc.data();
       if (data.gameState !== 'bidding' || data.players[data.currentPlayerIndex].id !== currentUserId) return;
@@ -537,7 +537,7 @@ function handleBid(callLandlord) {
         startDoudizhuGame();
         return;
       }
-      db.collection(`artifacts/${myAppId}/public/games`).doc(doudizhuGameState.gameId).update(gameData);
+      db.collection(`artifacts/${window.myAppId}/public/games`).doc(doudizhuGameState.gameId).update(gameData);
     }
   });
 }
@@ -616,7 +616,7 @@ function playDoudizhuCards() {
   if (playerHand.length === 0) {
     gameData.gameState = 'ended';
   }
-  db.collection(`artifacts/${myAppId}/public/games`).doc(doudizhuGameState.gameId).update(gameData).then(() => {
+  db.collection(`artifacts/${window.myAppId}/public/games`).doc(doudizhuGameState.gameId).update(gameData).then(() => {
     selectedDoudizhuCards = [];
   }).catch(error => {
     console.error("Error playing cards:", error);
@@ -638,7 +638,7 @@ function passDoudizhuTurn() {
     gameData.passes = 0;
     gameData.lastPlayedBy = null;
   }
-  db.collection(`artifacts/${myAppId}/public/games`).doc(doudizhuGameState.gameId).update(gameData).catch(error => {
+  db.collection(`artifacts/${window.myAppId}/public/games`).doc(doudizhuGameState.gameId).update(gameData).catch(error => {
     console.error("Error passing turn:", error);
     alert('Failed to pass turn.');
   });
