@@ -1677,7 +1677,7 @@ function doudizhuOpponentTurn() {
 function findPossiblePlays(hand, lastPattern) {
   const plays = [];
   // Sort hand to help with pattern detection, even for AI
-  hand.sort((a, b) => a.value - b.b);
+  hand.sort((a, b) => a.value - b.value); // Corrected typo: b.b changed to b.value
 
   // AI Logic (very basic for now):
 
@@ -1752,5 +1752,11 @@ function findPossiblePlays(hand, lastPattern) {
 
 // Initial setup on page load (optional, but ensures menu is shown)
 document.addEventListener('DOMContentLoaded', () => {
+  // Attach event listeners for menu buttons
+  document.getElementById('play-war-button').addEventListener('click', startWar);
+  document.getElementById('play-blackjack-button').addEventListener('click', startBlackjack);
+  document.getElementById('view-deck-button').addEventListener('click', showDeckViewer);
+  document.getElementById('play-doudizhu-button').addEventListener('click', startDoudizhu);
+
   returnToMenu(); // Ensure menu screen is visible initially
 });
