@@ -922,7 +922,7 @@ function updateDoudizhuUI() {
     renderDoudizhuHand('doudizhu-played-cards', doudizhuLastPlayedCards, false, true); // Last played cards are face up
     doudizhuCurrentPatternDiv.style.display = 'block'; // Show current pattern
     doudizhuPatternTextSpan.innerText = doudizhuLastPlayedPattern ? doudizhuLastPlayedPattern.type + (doudizhuLastPlayedPattern.value ? ` (${doudizhuLastPlayedPattern.value})` : '') : 'None';
-
+    
     // Control player action buttons based on current turn
     if (doudizhuCurrentTurn === 0) { // It's the player's turn
       doudizhuPlayButton.style.display = 'inline-block';
@@ -1729,8 +1729,12 @@ function doudizhuOpponentTurn() {
 
   updateDoudizhuUI();
 
-  // Removed the call to nextDoudizhuTurn() from here.
-  // The turn advancement is now solely managed by the nextDoudizhuTurn function itself.
+  // After the AI has taken its turn (played or passed),
+  // always advance to the next player. The nextDoudizhuTurn
+  // function will handle whether that's the human player or another AI.
+  if (doudizhuGameState === 'playing') {
+    nextDoudizhuTurn(); // Re-added this call
+  }
 }
 
 /**
@@ -1741,18 +1745,18 @@ function doudizhuOpponentTurn() {
  * @returns {Array<Array<any>>} An array of combinations.
  */
 function getSubsets(arr, size) {
-  const result = [];
-  function backtrack(current, start) {
-    if (current.length === size) {
-      result.push(current);
-      return;
+    const result = [];
+    function backtrack(current, start) {
+        if (current.length === size) {
+            result.push(current);
+            return;
+        }
+        for (let i = start; i < arr.length; i++) {
+            backtrack(current.concat(arr[i]), i + 1);
+        }
     }
-    for (let i = start; i < arr.length; i++) {
-      backtrack(current.concat(arr[i]), i + 1);
-    }
-  }
-  backtrack([], 0);
-  return result;
+    backtrack([], 0);
+    return result;
 }
 
 /**
