@@ -1,127 +1,77 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Card Game Hub</title>
-  <link rel="stylesheet" href="style.css">
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
+  <link rel="stylesheet" href="style.css" />
+  <script src="script.js" defer></script>
 </head>
-
 <body>
+  <h1>Card Game Hub</h1>
+
   <div id="menu-screen">
-    <h1>Card Game Hub</h1>
-    <button id="play-war-button" aria-label="Start War card game">Play War</button>
-    <button id="play-blackjack-button" aria-label="Start Blackjack card game">Play Blackjack</button>
-    <button id="view-deck-button" aria-label="View deck of cards">View Deck</button>
-    <button id="play-doudizhu-button" aria-label="Start Multiplayer Doudizhu">Play Multiplayer Doudizhu</button>
+    <button onclick="startWar()">Play War</button>
+    <button onclick="startBlackjack()">Play Blackjack</button>
+    <button onclick="showDeckViewer()">View Deck</button>
+    <button onclick="startDoudizhu()">Play Doudizhu</button>
   </div>
 
-  <!-- Game Screen (War, Blackjack, Deck Viewer) -->
   <div id="game-screen" style="display: none;">
-    <h1 id="game-title"></h1>
+    <h2 id="game-title"></h2>
     <div id="game-area">
-      <div id="enemy-player-info" class="player-info">
-        <span class="player-label">Opponent:</span>
+      <div class="player-info" id="enemy-player-info">
+        <span class="player-label">Opponent's Cards:</span>
         <span id="enemy-card-count" class="card-count"></span>
       </div>
-      <div id="enemy-hand" class="hand"></div>
-      <div id="player-player-info" class="player-info">
+      <div class="hand" id="enemy-hand"></div>
+
+      <div class="player-info" id="player-player-info">
         <span class="player-label">Your Cards:</span>
         <span id="player-card-count" class="card-count"></span>
       </div>
-      <div id="player-hand" class="hand"></div>
-      <div id="result"></div>
-      <button id="play-turn">Play Turn</button>
+      <div class="hand" id="player-hand"></div>
+
+      <button id="play-turn" style="display: none;">Play Turn</button>
     </div>
-    <button id="back-button">Back to Menu</button>
+    <div id="result"></div>
+    <button id="back-button" onclick="returnToMenu()">Back to Menu</button>
   </div>
 
-  <!-- Doudizhu Lobby Screen -->
-  <div id="doudizhu-lobby-screen" style="display: none;">
-    <h1>Doudizhu Lobby</h1>
-    <p>Your User ID: <span id="current-user-id">Loading...</span></p>
-    <div class="lobby-actions">
-      <input type="text" id="game-code-input" placeholder="Enter Game Code">
-      <button id="join-game-button">Join Game</button>
-      <button id="create-game-button">Create New Game</button>
-    </div>
-    <p id="lobby-message"></p>
-    <div id="current-game-code" style="display: none;">
-      Game Code: <span id="display-game-code"></span>
-    </div>
-    <div id="lobby-info">
-      <h3>Players in Lobby:</h3>
-      <ul id="lobby-player-list"></ul>
-    </div>
-    <button id="lobby-back-button">Back to Menu</button>
-  </div>
-
-  <!-- Doudizhu Game Screen -->
   <div id="doudizhu-game-screen" style="display: none;">
-    <h1 id="doudizhu-game-title">Doudizhu</h1>
+    <h2 id="doudizhu-game-title">Doudizhu</h2>
     <div id="doudizhu-game-area">
-      <div id="opponent1-area" class="doudizhu-opponent-area doudizhu-opponent-top">
-        <span id="opponent1-label">Opponent 1</span>
+      <div class="doudizhu-opponent-area doudizhu-opponent-top">
+        <div class="doudizhu-hand-label">Opponent 1</div>
         <div id="doudizhu-opponent1-hand" class="doudizhu-hand opponent-hand"></div>
       </div>
+
       <div id="doudizhu-center-area">
-        <span id="doudizhu-center-label">Played Cards</span>
+        <div class="doudizhu-hand-label" id="doudizhu-center-label">Played Cards</div>
         <div id="doudizhu-played-cards" class="doudizhu-hand played-cards-hand"></div>
-        <div id="doudizhu-current-pattern">
-          Current Pattern: <span id="doudizhu-pattern-text">None</span>
-        </div>
+        <div id="doudizhu-current-pattern" style="display: none;">Current Pattern: <span id="doudizhu-pattern-text">None</span></div>
       </div>
-      <div id="opponent2-area" class="doudizhu-opponent-area doudizhu-opponent-right">
-        <span id="opponent2-label">Opponent 2</span>
+
+      <div class="doudizhu-opponent-area doudizhu-opponent-right">
+        <div class="doudizhu-hand-label">Opponent 2</div>
         <div id="doudizhu-opponent2-hand" class="doudizhu-hand opponent-hand"></div>
       </div>
-      <div id="doudizhu-player-area" class="doudizhu-player-area">
-        <span class="doudizhu-hand-label">Your Hand</span>
-        <div id="doudizhu-player-hand" class="doudizhu-hand"></div>
+
+      <div class="doudizhu-player-area">
+        <div class="doudizhu-hand-label">Your Hand</div>
+        <div id="doudizhu-player-hand" class="doudizhu-hand player-hand"></div>
         <div id="doudizhu-action-buttons">
-          <button id="doudizhu-play-button">Play Cards</button>
-          <button id="doudizhu-pass-button">Pass</button>
+          <button id="doudizhu-play-button" style="display: none;">Play Cards</button>
+          <button id="doudizhu-pass-button" style="display: none;">Pass</button>
         </div>
-        <div id="doudizhu-bidding-buttons">
+        <div id="doudizhu-bidding-buttons" style="display: none;">
           <button id="doudizhu-call-landlord-button">Call Landlord</button>
           <button id="doudizhu-dont-call-button">Don't Call</button>
         </div>
-        <div id="doudizhu-result"></div>
       </div>
     </div>
-    <button id="doudizhu-game-back-button">Back to Menu</button>
+    <div id="doudizhu-result"></div>
+    <button id="doudizhu-back-button" onclick="returnToMenu()">Back to Menu</button>
   </div>
-
-  <script>
-    // Import the functions you need from the SDKs you need
-    import { initializeApp } from "firebase/app";
-    import { getAnalytics } from "firebase/analytics";
-    // TODO: Add SDKs for Firebase products that you want to use
-    // https://firebase.google.com/docs/web/setup#available-libraries
-
-    // Your web app's Firebase configuration
-    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-    const firebaseConfig = {
-      apiKey: "AIzaSyAPtAHSEYvgcOSysCpQzHQ3ACwKcFRB_ww",
-      authDomain: "cardgame-614ae.firebaseapp.com",
-      projectId: "cardgame-614ae",
-      storageBucket: "cardgame-614ae.firebasestorage.app",
-      messagingSenderId: "754518248357",
-      appId: "1:754518248357:web:8bc68ca524f65f22ab764c",
-      measurementId: "G-LQ6YN7HNMM"
-    };
-
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
-    const myAppId = "1:754518248357:web:8bc68ca524f65f22ab764c";
-  </script>
-  <script src="script.js"></script>
 </body>
-
 </html>
