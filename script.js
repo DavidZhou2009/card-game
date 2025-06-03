@@ -234,6 +234,9 @@ let doudizhuBiddingButtonsDiv;
 let doudizhuCallLandlordButton;
 let doudizhuDontCallButton;
 
+// Doudizhu Play Again Button (new)
+let doudizhuPlayAgainButton;
+
 
 // --- Helper Functions (general purpose) ---
 
@@ -812,6 +815,7 @@ function returnToMenu() {
   if (doudizhuPassButton) doudizhuPassButton.style.display = 'none';
   if (doudizhuBiddingButtonsDiv) doudizhuBiddingButtonsDiv.style.display = 'none';
   if (doudizhuCurrentPatternDiv) doudizhuCurrentPatternDiv.style.display = 'none';
+  if (doudizhuPlayAgainButton) doudizhuPlayAgainButton.style.display = 'none'; // Hide play again button
 
   // Ensure Doudizhu play/pass buttons are enabled for next game start
   if (doudizhuPlayButton) doudizhuPlayButton.disabled = false;
@@ -1014,6 +1018,17 @@ function startDoudizhu() {
     doudizhuPassButton.classList.add('doudizhu-action-button'); // Add styling class
   }
 
+  // Create Doudizhu Play Again button if it doesn't exist
+  if (!document.getElementById('doudizhu-play-again-button')) {
+    doudizhuPlayAgainButton = document.createElement('button');
+    doudizhuPlayAgainButton.id = 'doudizhu-play-again-button';
+    doudizhuPlayAgainButton.innerText = 'Play Again';
+    doudizhuPlayAgainButton.onclick = startDoudizhu;
+    doudizhuPlayAgainButton.classList.add('doudizhu-action-button');
+    document.getElementById('doudizhu-game-area').appendChild(doudizhuPlayAgainButton);
+  }
+  doudizhuPlayAgainButton.style.display = 'none'; // Hide initially
+
   // Ensure player's play/pass buttons are disabled at the start of bidding
   if (doudizhuPlayButton) doudizhuPlayButton.disabled = true;
   if (doudizhuPassButton) doudizhuPassButton.disabled = true;
@@ -1140,11 +1155,12 @@ function assignLandlordCardsAndStartGame() {
   if (doudizhuCurrentTurn === 0) { // Player is landlord
     if (doudizhuPlayButton) doudizhuPlayButton.disabled = false;
     if (doudizhuPassButton) doudizhuPassButton.disabled = false;
+    // No need to call nextDoudizhuTurn here, player takes their turn
   } else { // AI is landlord
     if (doudizhuPlayButton) doudizhuPlayButton.disabled = true;
     if (doudizhuPassButton) doudizhuPassButton.disabled = true;
-    // The nextDoudizhuTurn will handle calling doudizhuOpponentTurn after a delay
-    nextDoudizhuTurn(); // Call next turn immediately to trigger AI logic via setTimeout
+    // Trigger the first AI turn via nextDoudizhuTurn's internal setTimeout
+    nextDoudizhuTurn();
   }
 }
 
@@ -1324,7 +1340,7 @@ function isPairSequence(cards) {
   if (uniqueValues.length * 2 !== cards.length) return null; // Ensure all are pairs
   for (const count of counts.values()) {
     if (count !== 2) return null; // Each unique value must appear exactly twice
-    }
+  }
 
   for (let i = 0; i < uniqueValues.length - 1; i++) {
     if (uniqueValues[i] + 1 !== uniqueValues[i + 1]) {
@@ -1426,53 +1442,53 @@ function getPattern(cards) {
   }
 
   // 2. Check for fixed-size patterns
-  pattern = isSingle(cards);
-  if (pattern) {
-    console.log("Pattern identified: Single", pattern);
-    return pattern;
+  let tempPattern = isSingle(cards);
+  if (tempPattern) {
+    console.log("Pattern identified: Single", tempPattern);
+    return tempPattern;
   }
 
-  pattern = isPair(cards);
-  if (pattern) {
-    console.log("Pattern identified: Pair", pattern);
-    return pattern;
+  tempPattern = isPair(cards);
+  if (tempPattern) {
+    console.log("Pattern identified: Pair", tempPattern);
+    return tempPattern;
   }
 
-  pattern = isTriplet(cards);
-  if (pattern) {
-    console.log("Pattern identified: Triplet", pattern);
-    return pattern;
+  tempPattern = isTriplet(cards);
+  if (tempPattern) {
+    console.log("Pattern identified: Triplet", tempPattern);
+    return tempPattern;
   }
 
-  pattern = isTripletWithSingle(cards);
-  if (pattern) {
-    console.log("Pattern identified: Triplet + Single", pattern);
-    return pattern;
+  tempPattern = isTripletWithSingle(cards);
+  if (tempPattern) {
+    console.log("Pattern identified: Triplet + Single", tempPattern);
+    return tempPattern;
   }
 
-  pattern = isTripletWithPair(cards);
-  if (pattern) {
-    console.log("Pattern identified: Triplet + Pair", pattern);
-    return pattern;
+  tempPattern = isTripletWithPair(cards);
+  if (tempPattern) {
+    console.log("Pattern identified: Triplet + Pair", tempPattern);
+    return tempPattern;
   }
 
   // 3. Check for variable-size sequence patterns
-  pattern = isStraight(cards);
-  if (pattern) {
-    console.log("Pattern identified: Straight", pattern);
-    return pattern;
+  tempPattern = isStraight(cards);
+  if (tempPattern) {
+    console.log("Pattern identified: Straight", tempPattern);
+    return tempPattern;
   }
 
-  pattern = isPairSequence(cards);
-  if (pattern) {
-    console.log("Pattern identified: Pair Sequence", pattern);
-    return pattern;
+  tempPattern = isPairSequence(cards);
+  if (tempPattern) {
+    console.log("Pattern identified: Pair Sequence", tempPattern);
+    return tempPattern;
   }
 
-  pattern = isAirplane(cards); // This handles Airplane with/without wings
-  if (pattern) {
-    console.log("Pattern identified: Airplane", pattern);
-    return pattern;
+  tempPattern = isAirplane(cards); // This handles Airplane with/without wings
+  if (tempPattern) {
+    console.log("Pattern identified: Airplane", tempPattern);
+    return tempPattern;
   }
 
   console.log("No valid Doudizhu pattern found for selected cards.");
@@ -1516,6 +1532,35 @@ function canPlay(newPattern, lastPattern) {
   }
 
   return false; // Cannot play
+}
+
+// Function to check if any player has won
+function checkDoudizhuWinCondition() {
+  if (doudizhuPlayerHand.length === 0) {
+    doudizhuResultDiv.innerText = 'You played all your cards! You win!';
+    doudizhuGameState = 'game_over';
+    return true;
+  }
+  if (doudizhuOpponent1Hand.length === 0) {
+    doudizhuResultDiv.innerText = 'Opponent 1 played all their cards! Opponent 1 wins!';
+    doudizhuGameState = 'game_over';
+    return true;
+  }
+  if (doudizhuOpponent2Hand.length === 0) {
+    doudizhuResultDiv.innerText = 'Opponent 2 played all their cards! Opponent 2 wins!';
+    doudizhuGameState = 'game_over';
+    return true;
+  }
+  return false;
+}
+
+// Ends the Doudizhu game and shows relevant buttons
+function endDoudizhuGame() {
+  doudizhuGameState = 'game_over';
+  if (doudizhuPlayButton) doudizhuPlayButton.style.display = 'none';
+  if (doudizhuPassButton) doudizhuPassButton.style.display = 'none';
+  if (doudizhuPlayAgainButton) doudizhuPlayAgainButton.style.display = 'inline-block'; // Show play again
+  updateBackButton('Back to Menu', returnToMenu); // Ensure back button is correct
 }
 
 
@@ -1590,10 +1635,8 @@ function playDoudizhuCards() {
     if (doudizhuPassButton) doudizhuPassButton.disabled = true;
 
     // Check for win condition (player has no cards left)
-    if (doudizhuPlayerHand.length === 0) {
-      doudizhuResultDiv.innerText = 'You played all your cards! You win!';
-      doudizhuGameState = 'game_over'; // Set game state to end game
-      // Buttons remain disabled/hidden as game is over
+    if (checkDoudizhuWinCondition()) {
+      endDoudizhuGame();
     } else {
       // Move to next player's turn
       nextDoudizhuTurn();
@@ -1663,7 +1706,9 @@ function nextDoudizhuTurn() {
       doudizhuOpponentTurn(); // AI takes its action
       // After AI's action, and a short visual delay, then move to the next turn.
       // This ensures the AI's move message is visible before the turn changes.
-      setTimeout(nextDoudizhuTurn, 1000); // Delay before next player's turn
+      if (doudizhuGameState === 'playing') { // Only proceed if game is not over
+        setTimeout(nextDoudizhuTurn, 1000); // Delay before next player's turn
+      }
     }, 1500); // Initial delay before AI starts thinking/acting
   }
 }
@@ -1720,11 +1765,8 @@ function doudizhuOpponentTurn() {
 
 
     // Check for opponent win
-    if (opponentHand.length === 0) {
-      doudizhuResultDiv.innerText = `Opponent ${doudizhuCurrentTurn === 1 ? '1' : '2'} played all their cards! They win!`;
-      doudizhuGameState = 'game_over';
-      doudizhuPlayButton.style.display = 'none';
-      doudizhuPassButton.style.display = 'none';
+    if (checkDoudizhuWinCondition()) {
+      endDoudizhuGame();
     }
 
   } else {
@@ -1814,7 +1856,7 @@ function findPossiblePlays(hand, lastPattern) {
     // If there are bombs and the last pattern wasn't a rocket, prioritize playing the smallest valid bomb.
     const smallestBeatingBomb = bombsOnly.sort((a, b) => a.pattern.value - b.pattern.value)
       .find(bomb => canPlay(bomb.pattern, lastPattern));
-    if (smallestBeatingBomb) {
+    if (smallestBeomb) {
       return [smallestBeatingBomb];
     }
   }
