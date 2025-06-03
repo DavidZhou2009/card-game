@@ -1729,22 +1729,11 @@ function doudizhuOpponentTurn() {
 
   updateDoudizhuUI();
 
-  // If game not over, and it's still an AI turn (e.g., if AI played and next turn is also AI)
-  // Or if AI passed and the next turn is also AI, and the round hasn't cleared yet.
+  // After the AI has taken its turn (played or passed),
+  // always advance to the next player. The nextDoudizhuTurn
+  // function will handle whether that's the human player or another AI.
   if (doudizhuGameState === 'playing') {
-    // If it's now the player's turn, ensure buttons are visible.
-    if (doudizhuCurrentTurn === 0) {
-      doudizhuPlayButton.style.display = 'inline-block';
-      doudizhuPassButton.style.display = 'inline-block';
-      doudizhuPlayButton.disabled = false; // Enable for player
-      doudizhuPassButton.disabled = false; // Enable for player
-    } else {
-      // If it's still an AI's turn (e.g., previous AI played, or passed and next is also AI)
-      // and the round hasn't cleared, continue AI turns.
-      if (doudizhuPlayerWhoLastPlayed !== doudizhuCurrentTurn || doudizhuConsecutivePasses < 2) {
-        setTimeout(doudizhuOpponentTurn, 1500);
-      }
-    }
+    nextDoudizhuTurn();
   }
 }
 
