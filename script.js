@@ -1143,7 +1143,8 @@ function assignLandlordCardsAndStartGame() {
   } else { // AI is landlord
     if (doudizhuPlayButton) doudizhuPlayButton.disabled = true;
     if (doudizhuPassButton) doudizhuPassButton.disabled = true;
-    setTimeout(doudizhuOpponentTurn, 1500);
+    // The nextDoudizhuTurn will handle calling doudizhuOpponentTurn after a delay
+    nextDoudizhuTurn(); // Call next turn immediately to trigger AI logic via setTimeout
   }
 }
 
@@ -1323,7 +1324,7 @@ function isPairSequence(cards) {
   if (uniqueValues.length * 2 !== cards.length) return null; // Ensure all are pairs
   for (const count of counts.values()) {
     if (count !== 2) return null; // Each unique value must appear exactly twice
-  }
+    }
 
   for (let i = 0; i < uniqueValues.length - 1; i++) {
     if (uniqueValues[i] + 1 !== uniqueValues[i + 1]) {
@@ -1657,8 +1658,13 @@ function nextDoudizhuTurn() {
 
   // If it's an AI opponent's turn, trigger their move
   if (doudizhuGameState === 'playing' && doudizhuCurrentTurn !== 0) { // 0 is player
-    // Short delay to make AI moves noticeable
-    setTimeout(doudizhuOpponentTurn, 1500); // Call AI logic after a delay
+    // Use a nested setTimeout to ensure AI action and then turn progression
+    setTimeout(() => {
+      doudizhuOpponentTurn(); // AI takes its action
+      // After AI's action, and a short visual delay, then move to the next turn.
+      // This ensures the AI's move message is visible before the turn changes.
+      setTimeout(nextDoudizhuTurn, 1000); // Delay before next player's turn
+    }, 1500); // Initial delay before AI starts thinking/acting
   }
 }
 
@@ -1729,12 +1735,9 @@ function doudizhuOpponentTurn() {
 
   updateDoudizhuUI();
 
-  // After the AI has taken its turn (played or passed),
-  // always advance to the next player. The nextDoudizhuTurn
-  // function will handle whether that's the human player or another AI.
-  if (doudizhuGameState === 'playing') {
-    nextDoudizhuTurn(); // Re-added this call
-  }
+  // IMPORTANT: Removed the direct call to nextDoudizhuTurn() from here.
+  // The turn advancement is now solely managed by the nextDoudizhuTurn function itself,
+  // via the nested setTimeout.
 }
 
 /**
