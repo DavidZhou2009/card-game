@@ -181,7 +181,7 @@ let dealerWins = 0;
 // Elements for War/Blackjack/Deck Viewer
 const gameScreen = document.getElementById('game-screen');
 const gameTitle = document.getElementById('game-title');
-const backButton = document.getElementById('back-button');
+const backButton = document.getElementById('back-button'); // This is the back button on game-screen
 const playerHandDiv = document.getElementById('player-hand');
 const enemyHandDiv = document.getElementById('enemy-hand'); // Re-used for dealer hand
 const playerCardCountSpan = document.getElementById('player-card-count'); // Re-used for War, adapted for Blackjack scores
@@ -210,7 +210,7 @@ let doudizhuLastPlayedPattern = null; // Stores the last played pattern (e.g., {
 let doudizhuLastPlayedCards = []; // Stores the actual cards of the last played pattern
 let doudizhuCurrentTurn = 0; // 0: player, 1: opp1, 2: opp2
 
-// New variables for Doudizhu turn management
+// Variables for Doudizhu turn management
 let doudizhuConsecutivePasses = 0; // Counts passes since last valid play
 let doudizhuPlayerWhoLastPlayed = null; // Stores index of player who last played (0: player, 1: opp1, 2: opp2)
 
@@ -221,11 +221,10 @@ const doudizhuPlayerHandDiv = document.getElementById('doudizhu-player-hand');
 const doudizhuOpponent1HandDiv = document.getElementById('doudizhu-opponent1-hand');
 const doudizhuOpponent2HandDiv = document.getElementById('doudizhu-opponent2-hand');
 const doudizhuPlayedCardsDiv = document.getElementById('doudizhu-played-cards');
-// These were missing their `onclick` assignments
-let doudizhuPlayButton; // Changed to `let` for assignment in startDoudizhu
-let doudizhuPassButton; // Changed to `let` for assignment in startDoudizhu
+let doudizhuPlayButton;
+let doudizhuPassButton;
 const doudizhuResultDiv = document.getElementById('doudizhu-result');
-const doudizhuBackButton = document.getElementById('doudizhu-back-button');
+const doudizhuBackButton = document.getElementById('doudizhu-back-button'); // This is the back button on doudizhu-game-screen
 const doudizhuCenterLabel = document.getElementById('doudizhu-center-label');
 const doudizhuCurrentPatternDiv = document.getElementById('doudizhu-current-pattern');
 const doudizhuPatternTextSpan = document.getElementById('doudizhu-pattern-text');
@@ -242,7 +241,6 @@ let doudizhuDontCallButton;
 function updateBackButton(text, handler) {
   // This function now specifically targets the back button on the *currently active* game screen.
   // We need to ensure the correct back button is updated based on the active screen.
-  // For now, we'll assume only one main back button is visible at a time.
   // The HTML has two back buttons: one for game-screen, one for doudizhu-game-screen.
   // We'll update the one that's currently visible.
   if (gameScreen.style.display === 'block' && backButton) {
@@ -851,7 +849,7 @@ function showScreen(screenId, title) {
   // Clear result text for generic screen
   resultDiv.innerText = '';
 
-  // Default back button behavior
+  // Default back button behavior - will show the appropriate back button
   updateBackButton('Back to Menu', returnToMenu);
 }
 
@@ -914,7 +912,7 @@ function updateDoudizhuUI() {
     doudizhuPlayButton.style.display = 'none';
     doudizhuPassButton.style.display = 'none';
     doudizhuBiddingButtonsDiv.style.display = 'flex'; // Show bidding buttons (flex for row layout)
-    doudizhuResultDiv.innerText = `Player ${doudizhuCurrentBidderIndex === 0 ? 'You' : doudizhuCurrentBidderIndex === 1 ? 'Opponent 1' : 'Opponent 2'} to bid.`;
+    doudizhuResultDiv.innerText = `Player ${doudizhuCurrentBidderIndex === 0 ? 'You' : doudizhuCurrentBidderIndex === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn to bid.`;
   } else if (doudizhuGameState === 'playing') {
     doudizhuCenterLabel.innerText = 'Last Played Cards';
     renderDoudizhuHand('doudizhu-played-cards', doudizhuLastPlayedCards, false, true); // Last played cards are face up
@@ -929,7 +927,7 @@ function updateDoudizhuUI() {
 
 function startDoudizhu() {
   showScreen('doudizhu-game-screen', 'Doudizhu'); // Use the new Doudizhu specific screen
-  doudizhuResultDiv.innerText = 'Doudizhu game logic is not yet implemented. Dealing cards...';
+  doudizhuResultDiv.innerText = 'Dealing cards and starting bidding...';
 
   // Initialize Doudizhu specific game state
   doudizhuDeck = new Deck({ numDecks: 1, includeJokers: true, gameType: 'doudizhu' });
@@ -1001,12 +999,52 @@ function startDoudizhu() {
     doudizhuPassButton.classList.add('doudizhu-action-button'); // Add styling class
   }
 
-
   // Initial UI update
   updateDoudizhuUI();
 
-  // The back button for Doudizhu is already handled by showScreen and returnToMenu
-  doudizhuBackButton.onclick = returnToMenu;
+  // If the first bidder is an AI, trigger their bid
+  if (doudizhuCurrentBidderIndex !== 0) {
+    setTimeout(() => {
+      let aiHand;
+      if (doudizhuCurrentBidderIndex === 1) aiHand = doudizhuOpponent1Hand;
+      else if (doudizhuCurrentBidderIndex === 2) aiHand = doudizhuOpponent2Hand;
+      const aiBidDecision = aiMakeBid(doudizhuCurrentBidderIndex, aiHand);
+      handleBid(doudizhuCurrentBidderIndex, aiBidDecision);
+    }, 1000); // Small delay for AI bid
+  }
+}
+
+// Function for AI to make a bid (call landlord or not)
+function aiMakeBid(playerIndex, hand) {
+  // Simple AI bidding strategy:
+  // Call landlord if hand is strong (e.g., has a Bomb, a Rocket, or many high cards/2s)
+  // Count 2s and Jokers
+  let numTwos = hand.filter(card => card.value === 15).length;
+  let numJokers = hand.filter(card => card.rank === 'JOKER').length;
+
+  // Check for bombs
+  const counts = getCardValueCounts(hand);
+  let hasBomb = false;
+  for (const count of counts.values()) {
+    if (count === 4) {
+      hasBomb = true;
+      break;
+    }
+  }
+
+  // Check for Rocket
+  let hasRocket = (numJokers === 2);
+
+  // Bidding threshold
+  const strongHandThreshold = 2; // e.g., 2 or more 2s/Jokers, or a Bomb/Rocket
+
+  if (hasRocket || hasBomb || (numTwos + numJokers >= strongHandThreshold)) {
+    // AI decides to call landlord
+    return true;
+  } else {
+    // AI decides not to call landlord
+    return false;
+  }
 }
 
 // Handles a bid from a player (true for call, false for don't call)
@@ -1017,20 +1055,14 @@ function handleBid(playerIndex, bid) {
   // Move to next bidder
   doudizhuCurrentBidderIndex = (doudizhuCurrentBidderIndex + 1) % 3;
 
-  // Simple bidding logic: first one to call landlord wins, or random if all call
   let calledLandlordPlayers = doudizhuBids.map((b, i) => b ? i : -1).filter(i => i !== -1);
-
-  // Check if bidding is complete (all players have bid, or someone has called and others passed)
-  // This simplified logic assumes a single round of bidding.
-  // A more complex system would allow higher bids, etc.
   let allBidsReceived = doudizhuBids.every(b => b !== null);
   let atLeastOneCalled = calledLandlordPlayers.length > 0;
 
-  if (allBidsReceived || atLeastOneCalled) { // If all have bid, or someone has called
+  if (allBidsReceived || atLeastOneCalled) {
     if (calledLandlordPlayers.length === 0) {
-      // Everyone passed, restart game or handle no landlord scenario
       doudizhuResultDiv.innerText = "No one called landlord. Restarting game...";
-      setTimeout(startDoudizhu, 2000); // Restart after a short delay
+      setTimeout(startDoudizhu, 2000);
     } else if (calledLandlordPlayers.length === 1) {
       doudizhuLandlord = calledLandlordPlayers[0];
       assignLandlordCardsAndStartGame();
@@ -1040,8 +1072,17 @@ function handleBid(playerIndex, bid) {
       assignLandlordCardsAndStartGame();
     }
   } else {
-    // Continue bidding
     updateDoudizhuUI(); // Update to show next bidder's turn
+    // If the next bidder is an AI, trigger their bid
+    if (doudizhuCurrentBidderIndex !== 0) { // If not the player
+      setTimeout(() => {
+        let aiHand;
+        if (doudizhuCurrentBidderIndex === 1) aiHand = doudizhuOpponent1Hand;
+        else if (doudizhuCurrentBidderIndex === 2) aiHand = doudizhuOpponent2Hand;
+        const aiBidDecision = aiMakeBid(doudizhuCurrentBidderIndex, aiHand);
+        handleBid(doudizhuCurrentBidderIndex, aiBidDecision);
+      }, 1000); // Small delay for AI bid
+    }
   }
 }
 
@@ -1499,7 +1540,7 @@ function playDoudizhuCards() {
 
 
   if (canBeat) { // Use the canBeat flag here
-    doudizhuResultDiv.innerText = `Playing: ${newPattern.type}`;
+    doudizhuResultDiv.innerText = `You played: ${newPattern.type}`;
     if (newPattern.type !== 'Rocket' && newPattern.type !== 'Bomb') {
       doudizhuResultDiv.innerText += ` (Value: ${newPattern.value})`;
     }
@@ -1566,27 +1607,18 @@ function nextDoudizhuTurn() {
   console.log(`Next turn is for player index: ${doudizhuCurrentTurn}`);
 
   // Check for round end condition:
-  // 1. If two players have passed consecutively (meaning the turn has cycled back to the player who last played, or the next player after them if they were the last player).
-  // 2. Or, if the turn comes back to the player who made the last successful play.
+  // A round ends if two players have passed consecutively, or if the turn cycles back to the player who last played.
   if (doudizhuConsecutivePasses >= 2 || (doudizhuPlayerWhoLastPlayed !== null && doudizhuCurrentTurn === doudizhuPlayerWhoLastPlayed)) {
-    // If the current player is the one who played last, and others have passed, it's their turn to start a new round.
-    if (doudizhuPlayerWhoLastPlayed === doudizhuCurrentTurn) {
-      doudizhuResultDiv.innerText += " New round can begin!";
-    } else {
-      // This case handles when the second opponent passes and the turn moves to the player who played.
-      // Or if three players passed (which shouldn't happen with consecutivePasses == 2 check)
-      doudizhuResultDiv.innerText += " New round can begin!";
-    }
-
+    doudizhuResultDiv.innerText = `New round can begin! Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn to start.`;
     doudizhuLastPlayedPattern = null; // Clear the pattern to start a new round
     doudizhuLastPlayedCards = [];
     doudizhuConsecutivePasses = 0; // Reset pass counter
     doudizhuPlayerWhoLastPlayed = null; // Reset
     console.log("Round cleared. New round starting.");
+  } else {
+    doudizhuResultDiv.innerText = `Landlord: ${doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2'}. Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn!`;
   }
 
-
-  doudizhuResultDiv.innerText = `Landlord: ${doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2'}. Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn!`;
   updateDoudizhuUI();
 
   // If it's an AI opponent's turn, trigger their move
@@ -1596,7 +1628,7 @@ function nextDoudizhuTurn() {
   }
 }
 
-// --- Doudizhu Opponent AI Placeholder (Needs actual implementation) ---
+// --- Doudizhu Opponent AI Logic ---
 function doudizhuOpponentTurn() {
   console.log(`Opponent ${doudizhuCurrentTurn} turn.`);
   let opponentHand;
@@ -1609,11 +1641,10 @@ function doudizhuOpponentTurn() {
   // Sort opponent's hand for AI logic (even if not rendered face up)
   opponentHand.sort((a, b) => a.value - b.value);
 
-  // For now, a very basic AI: if it can play a single, it will. Otherwise, it passes.
   const possiblePlays = findPossiblePlays(opponentHand, doudizhuLastPlayedPattern);
 
   if (possiblePlays.length > 0) {
-    // For simplicity, just play the first valid pattern found
+    // For a basic AI, play the first valid pattern found (which will be the "smallest" due to sorting in findPossiblePlays)
     const play = possiblePlays[0];
     console.log(`Opponent ${doudizhuCurrentTurn} plays:`, play.cards.map(c => c.toString()));
 
@@ -1653,52 +1684,70 @@ function doudizhuOpponentTurn() {
 
   // If game not over, and it's still an AI turn (e.g., if AI played and next turn is also AI)
   // Or if AI passed and the next turn is also AI, and the round hasn't cleared yet.
-  if (doudizhuGameState === 'playing' && doudizhuCurrentTurn !== 0) {
-    // Check if the current turn is still an AI and the round hasn't ended by clearing
-    if (doudizhuPlayerWhoLastPlayed !== doudizhuCurrentTurn || doudizhuConsecutivePasses < 2) {
-      setTimeout(doudizhuOpponentTurn, 1500);
-    }
-  } else if (doudizhuGameState === 'playing' && doudizhuCurrentTurn === 0) {
+  if (doudizhuGameState === 'playing') {
     // If it's now the player's turn, ensure buttons are visible.
-    doudizhuPlayButton.style.display = 'inline-block';
-    doudizhuPassButton.style.display = 'inline-block';
+    if (doudizhuCurrentTurn === 0) {
+      doudizhuPlayButton.style.display = 'inline-block';
+      doudizhuPassButton.style.display = 'inline-block';
+    } else {
+      // If it's still an AI's turn (e.g., previous AI played, or passed and next is also AI)
+      // and the round hasn't cleared, continue AI turns.
+      if (doudizhuPlayerWhoLastPlayed !== doudizhuCurrentTurn || doudizhuConsecutivePasses < 2) {
+        setTimeout(doudizhuOpponentTurn, 1500);
+      }
+    }
   }
+}
+
+/**
+ * Helper function to get all combinations of a given size from an array.
+ * Used for finding wings for airplanes.
+ * @param {Array<any>} arr - The array to get combinations from.
+ * @param {number} size - The size of combinations.
+ * @returns {Array<Array<any>>} An array of combinations.
+ */
+function getSubsets(arr, size) {
+    const result = [];
+    function backtrack(current, start) {
+        if (current.length === size) {
+            result.push(current);
+            return;
+        }
+        for (let i = start; i < arr.length; i++) {
+            backtrack(current.concat(arr[i]), i + 1);
+        }
+    }
+    backtrack([], 0);
+    return result;
 }
 
 /**
  * Finds all valid Doudizhu patterns that can be played from a given hand,
  * optionally beating a last played pattern.
- * This is a highly complex function in a real Doudizhu AI.
- * For now, it's a very basic placeholder.
+ * The AI will then pick the "best" one (e.g., smallest valid play, or a bomb if it has one).
  * @param {Array<Card>} hand - The hand to find plays from.
  * @param {object|null} lastPattern - The pattern that needs to be beaten.
  * @returns {Array<{pattern: object, cards: Array<Card>}>} An array of possible plays.
  */
 function findPossiblePlays(hand, lastPattern) {
   const plays = [];
-  // Sort hand to help with pattern detection, even for AI
-  hand.sort((a, b) => a.value - b.value); // Corrected typo: b.b changed to b.value
+  hand.sort((a, b) => a.value - b.value);
+  const counts = getCardValueCounts(hand);
+  const uniqueValues = getUniqueSortedValues(hand); // Values like 3, 4, ..., A, 2, Black Joker, Red Joker
 
-  // AI Logic (very basic for now):
-
-  // 1. Check for Rocket if possible
-  // Ensure both jokers are present in hand
+  // 1. Always check for Rocket and Bombs first, as they can beat anything (or higher bombs)
+  // Rocket
   const blackJoker = hand.find(c => c.rank === 'JOKER' && c.color === 'black');
   const redJoker = hand.find(c => c.rank === 'JOKER' && c.color === 'red');
-
   if (blackJoker && redJoker) {
     const rocketCards = [blackJoker, redJoker];
-    const rocketPattern = isRocket(rocketCards);
-    if (rocketPattern && canPlay(rocketPattern, lastPattern)) {
-      plays.push({ pattern: rocketPattern, cards: rocketCards });
-      // If Rocket can be played, it's usually the best, so we might stop here for basic AI
-      return plays; // Return immediately to play Rocket
+    const pattern = isRocket(rocketCards);
+    if (pattern && canPlay(pattern, lastPattern)) {
+      plays.push({ pattern: pattern, cards: rocketCards });
     }
   }
 
-
-  // 2. Check for Bombs
-  const counts = getCardValueCounts(hand);
+  // Bombs
   const bombValues = [];
   for (const [value, count] of counts.entries()) {
     if (count === 4) {
@@ -1709,48 +1758,251 @@ function findPossiblePlays(hand, lastPattern) {
 
   for (const value of bombValues) {
     const bombCards = hand.filter(card => card.value === value);
-    const bombPattern = isBomb(bombCards);
-    if (bombPattern && canPlay(bombPattern, lastPattern)) {
-      plays.push({ pattern: bombPattern, cards: bombCards });
-    }
-  }
-  // If we found a bomb and it's the only option, or best option, return it for now.
-  // This part of AI needs to be smarter. For now, if there's a Bomb, prioritize it if it beats the last pattern.
-  // If a Rocket was found, it would have already been returned.
-  if (plays.length > 0 && lastPattern && lastPattern.type !== 'Rocket' && lastPattern.type !== 'Bomb') {
-    // If there are bombs and the last pattern wasn't a bomb/rocket, play the lowest bomb.
-    return [plays[0]]; // Return only the first (lowest value) bomb for now
-  } else if (plays.length > 0 && lastPattern && lastPattern.type === 'Bomb') {
-    // If last pattern was a bomb, find the smallest bomb that beats it
-    const beatingBombs = plays.filter(play => play.pattern.value > lastPattern.value);
-    if (beatingBombs.length > 0) {
-      return [beatingBombs[0]]; // Play the smallest beating bomb
+    const pattern = isBomb(bombCards);
+    if (pattern && canPlay(pattern, lastPattern)) {
+      plays.push({ pattern: pattern, cards: bombCards });
     }
   }
 
+  // If a Rocket or Bomb can be played, return it immediately for basic AI priority
+  if (plays.some(p => p.pattern.type === 'Rocket')) {
+    return plays.filter(p => p.pattern.type === 'Rocket'); // Return only Rocket
+  }
+  const bombsOnly = plays.filter(p => p.pattern.type === 'Bomb');
+  if (bombsOnly.length > 0 && (lastPattern === null || lastPattern.type !== 'Rocket')) {
+    // If there are bombs and the last pattern wasn't a rocket, prioritize playing the smallest valid bomb.
+    const smallestBeatingBomb = bombsOnly.sort((a, b) => a.pattern.value - b.pattern.value)
+      .find(bomb => canPlay(bomb.pattern, lastPattern));
+    if (smallestBeatingBomb) {
+      return [smallestBeatingBomb];
+    }
+  }
 
-  // 3. Simple play: Find a single card that can beat the last single.
-  // Or, if starting a new round, play the lowest single.
-  if (!lastPattern || (lastPattern.type === 'Single')) {
-    for (const card of hand) {
-      const singlePattern = isSingle([card]);
-      if (singlePattern && canPlay(singlePattern, lastPattern)) {
-        plays.push({ pattern: singlePattern, cards: [card] });
-        // For basic AI, just take the first single that works
-        return plays;
+  // If lastPattern is a Rocket or Bomb, and we haven't found a stronger Rocket/Bomb, we can't play anything else.
+  if (lastPattern && (lastPattern.type === 'Rocket' || lastPattern.type === 'Bomb')) {
+    return []; // Cannot play anything else
+  }
+
+  // 2. Generate other patterns (Singles, Pairs, Triplets, etc.)
+  // Iterate through unique values for singles, pairs, triplets, etc.
+  for (const val of uniqueValues) {
+    const cardsOfValue = hand.filter(card => card.value === val);
+    const count = cardsOfValue.length;
+
+    // Single
+    if (count >= 1) {
+      const pattern = isSingle([cardsOfValue[0]]);
+      if (pattern && canPlay(pattern, lastPattern)) {
+        plays.push({ pattern: pattern, cards: [cardsOfValue[0]] });
+      }
+    }
+    // Pair
+    if (count >= 2) {
+      const pattern = isPair(cardsOfValue.slice(0, 2));
+      if (pattern && canPlay(pattern, lastPattern)) {
+        plays.push({ pattern: pattern, cards: cardsOfValue.slice(0, 2) });
+      }
+    }
+    // Triplet
+    if (count >= 3) {
+      const pattern = isTriplet(cardsOfValue.slice(0, 3));
+      if (pattern && canPlay(pattern, lastPattern)) {
+        plays.push({ pattern: pattern, cards: cardsOfValue.slice(0, 3) });
       }
     }
   }
 
-  // You would add more complex logic here for other patterns (Pairs, Triplets, Straights etc.)
-  // For now, this very basic AI will only try to play a single, bomb, or rocket.
-  // If it cannot play a single, it will pass (handled in doudizhuOpponentTurn).
+  // Triplet + Single / Triplet + Pair (more complex, requires finding a triplet and then suitable wing)
+  const tripletValuesInHand = uniqueValues.filter(val => counts.get(val) >= 3);
+  for (const tripletVal of tripletValuesInHand) {
+    const tripletCards = hand.filter(c => c.value === tripletVal);
+    const remainingCards = hand.filter(c => c.value !== tripletVal); // Cards not part of this triplet
 
-  return plays; // Return all possible plays found (even if empty)
+    // Triplet + Single
+    if (remainingCards.length >= 1) {
+      // Find all possible single wings
+      const potentialSingleWings = remainingCards.filter(c => counts.get(c.value) === 1); // Only true singles
+      for (const singleCard of potentialSingleWings) {
+        const combinedCards = tripletCards.concat(singleCard);
+        const pattern = isTripletWithSingle(combinedCards);
+        if (pattern && canPlay(pattern, lastPattern)) {
+          plays.push({ pattern: pattern, cards: combinedCards });
+        }
+      }
+    }
+
+    // Triplet + Pair
+    const remainingCounts = getCardValueCounts(remainingCards);
+    const pairValuesInRemaining = Array.from(remainingCounts.keys()).filter(val => remainingCounts.get(val) >= 2);
+    if (pairValuesInRemaining.length >= 1) {
+      for (const pairVal of pairValuesInRemaining) {
+        const pairCards = remainingCards.filter(c => c.value === pairVal).slice(0, 2);
+        const combinedCards = tripletCards.concat(pairCards);
+        const pattern = isTripletWithPair(combinedCards);
+        if (pattern && canPlay(pattern, lastPattern)) {
+          plays.push({ pattern: pattern, cards: combinedCards });
+        }
+      }
+    }
+  }
+
+
+  // Straights
+  // Iterate through possible starting values for straights (3 to A, excluding 2s and Jokers)
+  for (let startVal = 3; startVal <= 14; startVal++) { // 3 to Ace (value 14)
+    for (let length = 5; length <= 12; length++) { // Straight length 5 to 12
+      const potentialStraightCards = [];
+      let hasAllCards = true;
+      for (let i = 0; i < length; i++) {
+        const currentVal = startVal + i;
+        // Check if value is within bounds (3-Ace) and if we have at least one card of that value
+        if (currentVal > 14 || counts.get(currentVal) === undefined || counts.get(currentVal) === 0) {
+          hasAllCards = false;
+          break;
+        }
+        // Take one card of the current value
+        potentialStraightCards.push(hand.find(c => c.value === currentVal));
+      }
+      if (hasAllCards && potentialStraightCards.length === length) { // Ensure correct length
+        const pattern = isStraight(potentialStraightCards);
+        if (pattern && canPlay(pattern, lastPattern)) {
+          plays.push({ pattern: pattern, cards: potentialStraightCards });
+        }
+      }
+    }
+  }
+
+  // Pair Sequences
+  for (let startVal = 3; startVal <= 14; startVal++) { // 3 to Ace
+    for (let length = 3; length <= 10; length++) { // 3 pairs (6 cards) to 10 pairs (20 cards)
+      const potentialPairSequenceCards = [];
+      let hasAllPairs = true;
+      for (let i = 0; i < length; i++) {
+        const currentVal = startVal + i;
+        // Check if value is within bounds (3-Ace) and if we have at least two cards of that value
+        if (currentVal > 14 || counts.get(currentVal) === undefined || counts.get(currentVal) < 2) {
+          hasAllPairs = false;
+          break;
+        }
+        // Take two cards of the current value
+        potentialPairSequenceCards.push(...hand.filter(c => c.value === currentVal).slice(0, 2));
+      }
+      if (hasAllPairs && potentialPairSequenceCards.length === length * 2) { // Ensure correct length
+        const pattern = isPairSequence(potentialPairSequenceCards);
+        if (pattern && canPlay(pattern, lastPattern)) {
+          plays.push({ pattern: pattern, cards: potentialPairSequenceCards });
+        }
+      }
+    }
+  }
+
+  // Airplanes (consecutive triplets)
+  // Find all triplets in hand first
+  const allTripletsInHand = [];
+  for (const val of uniqueValues) {
+    if (counts.get(val) >= 3 && val <= 14) { // Exclude 2s and Jokers for main triplets
+      allTripletsInHand.push(hand.filter(c => c.value === val).slice(0, 3));
+    }
+  }
+
+  if (allTripletsInHand.length >= 2) {
+    allTripletsInHand.sort((a, b) => a[0].value - b[0].value); // Sort by value of the triplet
+
+    // Iterate to find consecutive triplets for the airplane body
+    for (let i = 0; i < allTripletsInHand.length - 1; i++) {
+      const firstTriplet = allTripletsInHand[i];
+      const secondTriplet = allTripletsInHand[i + 1];
+
+      if (firstTriplet[0].value + 1 === secondTriplet[0].value) {
+        // Found a consecutive pair of triplets (base for 2-triplet airplane)
+        const baseAirplaneCards = firstTriplet.concat(secondTriplet);
+
+        // Try without wings (e.g., 6 cards for 2 triplets)
+        let pattern = isAirplane(baseAirplaneCards);
+        if (pattern && canPlay(pattern, lastPattern)) {
+          plays.push({ pattern: pattern, cards: baseAirplaneCards });
+        }
+
+        // Collect remaining cards for potential wings
+        const remainingCardsForWings = hand.filter(c => !baseAirplaneCards.includes(c));
+
+        // Try with singles as wings (need 2 singles for 2 triplets)
+        if (remainingCardsForWings.length >= 2) {
+          const singleCardsForWings = remainingCardsForWings.filter(c => counts.get(c.value) >= 1); // Any card can be a single wing
+          const singleCombinations = getSubsets(singleCardsForWings, 2); // Get all combinations of 2 singles
+          for (const singles of singleCombinations) {
+            const combinedCards = baseAirplaneCards.concat(singles);
+            pattern = isAirplane(combinedCards);
+            if (pattern && canPlay(pattern, lastPattern)) {
+              plays.push({ pattern: pattern, cards: combinedCards });
+            }
+          }
+        }
+
+        // Try with pairs as wings (need 2 pairs for 2 triplets)
+        const pairCardsForWings = [];
+        const tempCountsForWings = getCardValueCounts(remainingCardsForWings);
+        for (const val of Array.from(tempCountsForWings.keys())) {
+          if (tempCountsForWings.get(val) >= 2) {
+            pairCardsForWings.push(remainingCardsForWings.filter(c => c.value === val).slice(0, 2));
+          }
+        }
+        if (pairCardsForWings.length >= 2) {
+          const pairCombinations = getSubsets(pairCardsForWings, 2); // Get all combinations of 2 pairs
+          for (const pairs of pairCombinations) {
+            const combinedCards = baseAirplaneCards.concat(...pairs); // Flatten pairs array
+            pattern = isAirplane(combinedCards);
+            if (pattern && canPlay(pattern, lastPattern)) {
+              plays.push({ pattern: pattern, cards: combinedCards });
+            }
+          }
+        }
+      }
+    }
+    // TODO: Extend for airplanes with more than 2 consecutive triplets (e.g., 3-triplet airplane)
+    // This would require more complex iteration over allTripletsInHand to find longer sequences.
+  }
+
+
+  // Sort all found valid plays for AI decision making:
+  // Prioritize by pattern type (Rocket > Bomb > Airplane > Pair Sequence > Straight > Triplet+Pair > Triplet+Single > Triplet > Pair > Single)
+  // Then by length (shorter first for sequences if types are same)
+  // Then by value (lowest value first)
+  plays.sort((a, b) => {
+    const typeOrder = {
+      'Rocket': 10,
+      'Bomb': 9,
+      'Airplane': 8,
+      'Airplane + Singles': 7,
+      'Airplane + Pairs': 6,
+      'Pair Sequence': 5,
+      'Straight': 4,
+      'Triplet + Pair': 3,
+      'Triplet + Single': 2,
+      'Triplet': 1,
+      'Pair': 0.5, // Slightly lower than triplet
+      'Single': 0
+    };
+
+    // Primary sort: by pattern type (highest priority first)
+    if (typeOrder[a.pattern.type] !== typeOrder[b.pattern.type]) {
+      return typeOrder[b.pattern.type] - typeOrder[a.pattern.type]; // Descending order for type priority
+    }
+
+    // Secondary sort: by length (ascending for same type)
+    if (a.pattern.length !== b.pattern.length) {
+      return a.pattern.length - b.pattern.length;
+    }
+
+    // Tertiary sort: by value (ascending for same type and length)
+    return a.pattern.value - b.pattern.value;
+  });
+
+  return plays;
 }
 
 
-// Initial setup on page load (optional, but ensures menu is shown)
-// Removed the DOMContentLoaded listener and its contents.
-// The functions are now globally available as expected by inline onclicks.
+// Initial setup on page load (ensures menu is shown)
+// No DOMContentLoaded listener is needed here because the inline onclicks
+// in HTML will call the functions directly, and the script is deferred.
 returnToMenu(); // Ensure menu screen is visible initially
