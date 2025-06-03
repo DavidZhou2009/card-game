@@ -812,6 +812,10 @@ function returnToMenu() {
   if (doudizhuPassButton) doudizhuPassButton.style.display = 'none';
   if (doudizhuBiddingButtonsDiv) doudizhuBiddingButtonsDiv.style.display = 'none';
   if (doudizhuCurrentPatternDiv) doudizhuCurrentPatternDiv.style.display = 'none';
+
+  // Ensure Doudizhu play/pass buttons are enabled for next game start
+  if (doudizhuPlayButton) doudizhuPlayButton.disabled = false;
+  if (doudizhuPassButton) doudizhuPassButton.disabled = false;
 }
 
 // Centralized function to show a specific game screen
@@ -918,8 +922,19 @@ function updateDoudizhuUI() {
     renderDoudizhuHand('doudizhu-played-cards', doudizhuLastPlayedCards, false, true); // Last played cards are face up
     doudizhuCurrentPatternDiv.style.display = 'block'; // Show current pattern
     doudizhuPatternTextSpan.innerText = doudizhuLastPlayedPattern ? doudizhuLastPlayedPattern.type + (doudizhuLastPlayedPattern.value ? ` (${doudizhuLastPlayedPattern.value})` : '') : 'None';
-    doudizhuPlayButton.style.display = 'inline-block';
-    doudizhuPassButton.style.display = 'inline-block';
+    
+    // Control player action buttons based on current turn
+    if (doudizhuCurrentTurn === 0) { // It's the player's turn
+      doudizhuPlayButton.style.display = 'inline-block';
+      doudizhuPassButton.style.display = 'inline-block';
+      doudizhuPlayButton.disabled = false; // Ensure enabled
+      doudizhuPassButton.disabled = false; // Ensure enabled
+    } else { // It's an AI's turn
+      doudizhuPlayButton.style.display = 'none';
+      doudizhuPassButton.style.display = 'none';
+      doudizhuPlayButton.disabled = true; // Ensure disabled
+      doudizhuPassButton.disabled = true; // Ensure disabled
+    }
     doudizhuBiddingButtonsDiv.style.display = 'none'; // Hide bidding buttons
     doudizhuResultDiv.innerText = `Landlord: ${doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2'}. Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn!`;
   }
@@ -998,6 +1013,10 @@ function startDoudizhu() {
     doudizhuPassButton.onclick = passDoudizhuTurn;
     doudizhuPassButton.classList.add('doudizhu-action-button'); // Add styling class
   }
+
+  // Ensure player's play/pass buttons are disabled at the start of bidding
+  if (doudizhuPlayButton) doudizhuPlayButton.disabled = true;
+  if (doudizhuPassButton) doudizhuPassButton.disabled = true;
 
   // Initial UI update
   updateDoudizhuUI();
@@ -1117,8 +1136,13 @@ function assignLandlordCardsAndStartGame() {
 
   updateDoudizhuUI(); // Update UI for playing phase
 
-  // If landlord is an AI, trigger their first turn
-  if (doudizhuLandlord !== 0) {
+  // Explicitly enable/disable player buttons based on whose turn it is
+  if (doudizhuCurrentTurn === 0) { // Player is landlord
+    if (doudizhuPlayButton) doudizhuPlayButton.disabled = false;
+    if (doudizhuPassButton) doudizhuPassButton.disabled = false;
+  } else { // AI is landlord
+    if (doudizhuPlayButton) doudizhuPlayButton.disabled = true;
+    if (doudizhuPassButton) doudizhuPassButton.disabled = true;
     setTimeout(doudizhuOpponentTurn, 1500);
   }
 }
@@ -1542,7 +1566,9 @@ function playDoudizhuCards() {
   if (canBeat) { // Use the canBeat flag here
     doudizhuResultDiv.innerText = `You played: ${newPattern.type}`;
     if (newPattern.type !== 'Rocket' && newPattern.type !== 'Bomb') {
-      doudizhuResultDiv.innerText += ` (Value: ${newPattern.value})`;
+      doudizhuResultDiv.innerText += ` (Value: ${newPattern.value}).`;
+    } else {
+      doudizhuResultDiv.innerText += `.`;
     }
     console.log("Play is valid. Removing cards from hand.");
 
@@ -1558,14 +1584,15 @@ function playDoudizhuCards() {
     // Deselect cards in UI
     selectedElements.forEach(el => el.classList.remove('selected'));
 
+    // Immediately disable player buttons after a successful play
+    if (doudizhuPlayButton) doudizhuPlayButton.disabled = true;
+    if (doudizhuPassButton) doudizhuPassButton.disabled = true;
+
     // Check for win condition (player has no cards left)
     if (doudizhuPlayerHand.length === 0) {
       doudizhuResultDiv.innerText = 'You played all your cards! You win!';
       doudizhuGameState = 'game_over'; // Set game state to end game
-      // Hide play/pass buttons
-      doudizhuPlayButton.style.display = 'none';
-      doudizhuPassButton.style.display = 'none';
-      // Potentially show a "Play Again" button or return to menu
+      // Buttons remain disabled/hidden as game is over
     } else {
       // Move to next player's turn
       nextDoudizhuTurn();
@@ -1589,6 +1616,10 @@ function passDoudizhuTurn() {
   selectedElements.forEach(el => el.classList.remove('selected'));
 
   doudizhuConsecutivePasses++; // Increment pass counter
+
+  // Immediately disable player buttons after passing
+  if (doudizhuPlayButton) doudizhuPlayButton.disabled = true;
+  if (doudizhuPassButton) doudizhuPassButton.disabled = true;
 
   nextDoudizhuTurn();
   updateDoudizhuUI();
@@ -1631,6 +1662,17 @@ function nextDoudizhuTurn() {
 // --- Doudizhu Opponent AI Logic ---
 function doudizhuOpponentTurn() {
   console.log(`Opponent ${doudizhuCurrentTurn} turn.`);
+
+  // Immediately hide and disable player buttons when AI's turn starts
+  if (doudizhuPlayButton) {
+    doudizhuPlayButton.style.display = 'none';
+    doudizhuPlayButton.disabled = true;
+  }
+  if (doudizhuPassButton) {
+    doudizhuPassButton.style.display = 'none';
+    doudizhuPassButton.disabled = true;
+  }
+
   let opponentHand;
   if (doudizhuCurrentTurn === 1) {
     opponentHand = doudizhuOpponent1Hand;
@@ -1662,7 +1704,9 @@ function doudizhuOpponentTurn() {
 
     doudizhuResultDiv.innerText = `Opponent ${doudizhuCurrentTurn === 1 ? '1' : '2'} played: ${play.pattern.type}`;
     if (play.pattern.type !== 'Rocket' && play.pattern.type !== 'Bomb') {
-      doudizhuResultDiv.innerText += ` (Value: ${play.pattern.value})`;
+      doudizhuResultDiv.innerText += ` (Value: ${play.pattern.value}).`;
+    } else {
+      doudizhuResultDiv.innerText += `.`;
     }
 
 
@@ -1689,6 +1733,8 @@ function doudizhuOpponentTurn() {
     if (doudizhuCurrentTurn === 0) {
       doudizhuPlayButton.style.display = 'inline-block';
       doudizhuPassButton.style.display = 'inline-block';
+      doudizhuPlayButton.disabled = false; // Enable for player
+      doudizhuPassButton.disabled = false; // Enable for player
     } else {
       // If it's still an AI's turn (e.g., previous AI played, or passed and next is also AI)
       // and the round hasn't cleared, continue AI turns.
@@ -1821,7 +1867,7 @@ function findPossiblePlays(hand, lastPattern) {
     // Triplet + Single
     if (remainingCards.length >= 1) {
       // Find all possible single wings
-      const potentialSingleWings = remainingCards.filter(c => counts.get(c.value) === 1); // Only true singles
+      const potentialSingleWings = remainingCards.filter(c => counts.get(c.value) >= 1); // Any card can be a single wing
       for (const singleCard of potentialSingleWings) {
         const combinedCards = tripletCards.concat(singleCard);
         const pattern = isTripletWithSingle(combinedCards);
