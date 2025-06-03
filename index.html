@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,19 +7,15 @@
   <link rel="stylesheet" href="style.css" />
   <script src="script.js" defer></script>
 </head>
-
 <body>
   <h1>Card Game Hub</h1>
 
   <div id="menu-screen">
-    <button id="play-war-button">Play War</button>
-    <button id="play-blackjack-button">Play Blackjack</button>
-    <button id="view-deck-button">View Deck</button>
-    <button id="play-doudizhu-button">Play Doudizhu</button>
+    <button id="play-war-button" onclick="startWar()">Play War</button>
+    <button id="play-blackjack-button" onclick="startBlackjack()">Play Blackjack</button>
+    <button id="view-deck-button" onclick="showDeckViewer()">View Deck</button>
+    <button id="play-doudizhu-button" onclick="startDoudizhu()">Play Doudizhu</button>
   </div>
-
-  <button id="back-button">Back to Menu</button>
-  <button id="doudizhu-back-button">Back to Menu</button>
 
   <div id="game-screen" style="display: none;">
     <h2 id="game-title"></h2>
@@ -80,5 +75,4 @@
     <button id="doudizhu-back-button" onclick="returnToMenu()">Back to Menu</button>
   </div>
 </body>
-
 </html>

@@ -20,23 +20,52 @@ h2 {
   margin-bottom: 20px;
 }
 
+/* --- Common Button Styling --- */
+/* This class will be applied to all primary action buttons, including menu and back buttons */
+.app-button {
+  display: block; /* Default to block for menu buttons, overridden for others */
+  width: auto; /* Flexible width */
+  padding: 15px 25px;
+  margin: 15px auto; /* For block buttons, center them */
+  font-size: 1.2rem;
+  border: none;
+  border-radius: 8px;
+  background-color: #007bff; /* Primary blue */
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.app-button:hover {
+  background-color: #0056b3; /* Darker blue on hover */
+  transform: translateY(-3px);
+}
+
+.app-button:active {
+  background-color: #004085; /* Even darker blue on active */
+  transform: translateY(0);
+}
+
 /* --- Menu Screen Styling --- */
 #menu-screen {
   margin-top: 50px;
 }
 
 #menu-screen button {
+  /* Inherit common button styles, override width/display for menu-specific layout */
   display: block;
   width: 250px;
-  padding: 15px 25px;
   margin: 15px auto;
+  /* Ensure these buttons also use the common styling */
+  padding: 15px 25px;
   font-size: 1.2rem;
   border: none;
   border-radius: 8px;
   background-color: #007bff;
   color: white;
   cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
+  transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -49,6 +78,7 @@ h2 {
   background-color: #004085;
   transform: translateY(0);
 }
+
 
 /* --- Generic Game Screen Styling (War, Blackjack, Deck Viewer) --- */
 #game-screen {
@@ -163,30 +193,22 @@ h2 {
 
 
 /* --- Game Control Buttons and Results (War, Blackjack) --- */
-#play-turn, #game-screen button {
+/* Play Turn button (green) */
+#play-turn {
   padding: 12px 25px;
   font-size: 1.1rem;
   margin: 20px 10px;
   border: none;
   border-radius: 6px;
-  background-color: #28a745; /* Green for play, blue for back */
+  background-color: #28a745; /* Green for play */
   color: white;
   cursor: pointer;
   transition: background-color 0.3s ease, transform 0.2s ease;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
-#game-screen button { /* Back to menu button */
-  background-color: #6c757d; /* Grey for back */
-}
-
 #play-turn:hover {
   background-color: #218838;
-  transform: translateY(-2px);
-}
-
-#game-screen button:hover {
-  background-color: #5a6268;
   transform: translateY(-2px);
 }
 
@@ -196,6 +218,45 @@ h2 {
   transform: none;
   box-shadow: none;
 }
+
+/* Blackjack Hit/Stand buttons (dynamically created, use this class) */
+.game-action-button {
+  padding: 12px 25px;
+  font-size: 1.1rem;
+  margin: 20px 10px;
+  border: none;
+  border-radius: 6px;
+  background-color: #007bff; /* Blue for actions */
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+.game-action-button:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+}
+
+/* Back to Menu button on generic game screen (now blue) */
+#game-screen #back-button { /* More specific selector to target this back button */
+  background-color: #007bff; /* Blue */
+  padding: 12px 25px;
+  font-size: 1.1rem;
+  margin: 20px 10px;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+#game-screen #back-button:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+}
+
 
 #result {
   font-size: 1.4rem;
@@ -374,9 +435,9 @@ h2 {
   gap: 15px; /* Space between buttons */
 }
 
+/* Doudizhu action and bidding buttons (now explicitly blue) */
 #doudizhu-action-buttons button,
-#doudizhu-bidding-buttons button,
-#doudizhu-back-button {
+#doudizhu-bidding-buttons button {
   padding: 12px 25px;
   font-size: 1.1rem;
   border: none;
@@ -389,19 +450,27 @@ h2 {
 }
 
 #doudizhu-action-buttons button:hover,
-#doudizhu-bidding-buttons button:hover,
-#doudizhu-back-button:hover {
+#doudizhu-bidding-buttons button:hover {
   background-color: #0056b3;
   transform: translateY(-2px);
 }
 
+/* Doudizhu back button (now blue) */
 #doudizhu-back-button {
-  background-color: #6c757d; /* Grey for back button */
+  background-color: #007bff; /* Blue, consistent with other primary buttons */
   margin-top: 30px;
+  padding: 12px 25px;
+  font-size: 1.1rem;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
 #doudizhu-back-button:hover {
-  background-color: #5a6268;
+  background-color: #0056b3;
 }
 
 #doudizhu-result {
@@ -494,7 +563,7 @@ h2 {
     padding: 12px 20px;
   }
 
-  #play-turn, #game-screen button {
+  #play-turn, #game-screen #back-button { /* Specific selector for back button */
     font-size: 1rem;
     padding: 10px 20px;
     margin: 15px 5px;
