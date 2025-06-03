@@ -1,5 +1,6 @@
 // --- Firebase Initialization (Global) ---
-// These variables will be initialized by the Canvas environment.
+// These variables will now be initialized from the global scope,
+// which are set by the script block in index.html.
 let app;
 let db;
 let auth;
@@ -8,25 +9,21 @@ let currentUserName = "Player"; // Default name, could be randomized or user-inp
 let currentGameId = null; // Stores the ID of the current game room
 
 // Get Firebase config and app ID from the global scope (set in index.html)
-// Ensure these variables are correctly named to match what you put in index.html
-const firebaseConfig = typeof myFirebaseConfig !== 'undefined' ? myFirebaseConfig : {};
-const appId = typeof myAppId !== 'undefined' ? myAppId : 'default-app-id';
+// These variables (firebaseConfig and myAppId) are now directly accessible.
+// No more checking for '__firebase_config' or '__app_id'.
+const firebaseConfig = typeof firebaseConfig !== 'undefined' ? firebaseConfig : {}; // Use the global firebaseConfig
+const appId = typeof myAppId !== 'undefined' ? myAppId : 'default-app-id'; // Use the global myAppId
 
 console.log("Firebase Config (on script load):", firebaseConfig); // DEBUG: Check if config is loaded
-console.log("App ID (on script load):", appId); // DEBUG:
+console.log("App ID (on script load):", appId); // DEBUG: Check if app ID is loaded
 
 // Function to handle Firebase sign-in
 async function firebaseSignIn() {
     try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-            // Use signInWithCustomToken if a token is provided by the Canvas
-            await auth.signInWithCustomToken(__initial_auth_token);
-            console.log("Firebase: Signed in with custom token.");
-        } else {
-            // Otherwise, sign in anonymously
-            await auth.signInAnonymously();
-            console.log("Firebase: Signed in anonymously.");
-        }
+        // For GitHub Pages, we typically sign in anonymously or use a simple auth method.
+        // The __initial_auth_token is specific to the Canvas environment.
+        await auth.signInAnonymously();
+        console.log("Firebase: Signed in anonymously.");
     } catch (error) {
         console.error("Firebase Auth Error during sign-in:", error);
         // Retry after a delay if sign-in fails
@@ -40,6 +37,7 @@ async function firebaseSignIn() {
 }
 
 // Initialize Firebase only once if config is available
+// Now, this checks the global 'firebaseConfig' object directly.
 if (Object.keys(firebaseConfig).length > 0) {
     // Initialize the Firebase app using the global 'firebase' object (Namespaced API)
     app = firebase.initializeApp(firebaseConfig);
@@ -65,7 +63,7 @@ if (Object.keys(firebaseConfig).length > 0) {
         }
     });
 } else {
-    // Fallback for environments where Firebase config is not provided (e.g., local file system without a server)
+    // Fallback for environments where Firebase config is still not provided (shouldn't happen on GitHub Pages now)
     console.warn("Firebase config not found. Running in standalone mode (Multiplayer Doudizhu will not work).");
     currentUserId = 'local-user-' + Math.random().toString(36).substring(2, 9); // Generate a dummy user ID
     const userIdSpan = document.getElementById('current-user-id');
@@ -77,167 +75,167 @@ if (Object.keys(firebaseConfig).length > 0) {
 
 // Card class now supports jokers with color property
 class Card {
-    constructor(suit, rank, value, color = null) {
-        this.suit = suit;     // '♠', '♥', '♦', '♣' or null for joker
-        this.rank = rank;     // '2'–'10', 'J', 'Q', 'K', 'A', or 'JOKER'
-        this.value = value;   // numeric value for game logic
-        this.color = color;   // 'red' or 'black' for joker, null otherwise
-    }
+  constructor(suit, rank, value, color = null) {
+    this.suit = suit;     // '♠', '♥', '♦', '♣' or null for joker
+    this.rank = rank;     // '2'–'10', 'J', 'Q', 'K', 'A', or 'JOKER'
+    this.value = value;   // numeric value for game logic
+    this.color = color;   // 'red' or 'black' for joker, null otherwise
+  }
 
-    toString() {
-        if (this.rank === 'JOKER') {
-            return `${this.color.charAt(0).toUpperCase() + this.color.slice(1)} Joker`;
-        }
-        return `${this.rank} of ${this.suitName()}`;
+  toString() {
+    if (this.rank === 'JOKER') {
+      return `${this.color.charAt(0).toUpperCase() + this.color.slice(1)} Joker`;
     }
+    return `${this.rank} of ${this.suitName()}`;
+  }
 
-    // Helper to convert suit symbol to full name
-    suitName() {
-        const suitMap = {
-            '♠': 'spades',
-            '♥': 'hearts',
-            '♦': 'diamonds',
-            '♣': 'clubs'
-        };
-        return suitMap[this.suit] || '';
-    }
+  // Helper to convert suit symbol to full name
+  suitName() {
+    const suitMap = {
+      '♠': 'spades',
+      '♥': 'hearts',
+      '♦': 'diamonds',
+      '♣': 'clubs'
+    };
+    return suitMap[this.suit] || '';
+  }
 
-    // Convert Card object to a plain object for Firestore
-    toFirestore() {
-        return {
-            suit: this.suit,
-            rank: this.rank,
-            value: this.value,
-            color: this.color
-        };
-    }
+  // Convert Card object to a plain object for Firestore
+  toFirestore() {
+    return {
+      suit: this.suit,
+      rank: this.rank,
+      value: this.value,
+      color: this.color
+    };
+  }
 
-    // Create Card object from Firestore data
-    static fromFirestore(data) {
-        return new Card(data.suit, data.rank, data.value, data.color);
-    }
+  // Create Card object from Firestore data
+  static fromFirestore(data) {
+    return new Card(data.suit, data.rank, data.value, data.color);
+  }
 }
 
 class Deck {
-    constructor(options = {}) {
-        const defaultOptions = {
-            numDecks: 1,          // For Blackjack: how many standard decks
-            includeJokers: false, // For Deck Viewer: whether to include jokers
-            gameType: 'war'       // 'war', 'blackjack', 'viewer', 'doudizhu' - influences card values
-        };
-        const settings = { ...defaultOptions, ...options }; // Merge defaults with provided options
+  constructor(options = {}) {
+    const defaultOptions = {
+      numDecks: 1,          // For Blackjack: how many standard decks
+      includeJokers: false, // For Deck Viewer: whether to include jokers
+      gameType: 'war'       // 'war', 'blackjack', 'viewer', 'doudizhu' - influences card values
+    };
+    const settings = { ...defaultOptions, ...options }; // Merge defaults with provided options
 
-        this.cards = [];
-        const suits = ['♠', '♥', '♦', '♣'];
-        const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+    this.cards = [];
+    const suits = ['♠', '♥', '♦', '♣'];
+    const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
-        let values;
-        if (settings.gameType === 'blackjack') {
-            // Blackjack specific values: J,Q,K are 10; Ace is 11 (to be adjusted later if hand > 21)
-            values = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11];
-        } else if (settings.gameType === 'doudizhu') {
-            // Doudizhu values: 3 smallest, 2 largest, then A, K, Q, J, 10...4. Jokers are highest.
-            // Here, we assign values for basic sorting: 3=3, 4=4, ..., 10=10, J=11, Q=12, K=13, A=14, 2=15
-            values = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]; // 3 to A, then 2
-        }
-        else { // 'war' or 'viewer' - standard card values for comparison, Ace can be 1
-            values = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 1]; // Ace as 1 for sorting/comparison in War/Viewer
-        }
-
-        // Create standard cards based on numDecks
-        for (let i = 0; i < settings.numDecks; i++) {
-            for (let suit of suits) {
-                for (let j = 0; j < ranks.length; j++) {
-                    this.cards.push(new Card(suit, ranks[j], values[j]));
-                }
-            }
-        }
-
-        // Optionally include two jokers if specified (primarily for Deck Viewer and Doudizhu)
-        if (settings.includeJokers) {
-            // For Doudizhu, jokers have distinct high values
-            if (settings.gameType === 'doudizhu') {
-                this.cards.push(new Card(null, 'JOKER', 16, 'black')); // Black Joker (Small Joker)
-                this.cards.push(new Card(null, 'JOKER', 17, 'red'));   // Red Joker (Big Joker)
-            } else {
-                this.cards.push(new Card(null, 'JOKER', null, 'black'));
-                this.cards.push(new Card(null, 'JOKER', null, 'red'));
-            }
-        }
+    let values;
+    if (settings.gameType === 'blackjack') {
+      // Blackjack specific values: J,Q,K are 10; Ace is 11 (to be adjusted later if hand > 21)
+      values = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11];
+    } else if (settings.gameType === 'doudizhu') {
+        // Doudizhu values: 3 smallest, 2 largest, then A, K, Q, J, 10...4. Jokers are highest.
+        // Here, we assign values for basic sorting: 3=3, 4=4, ..., 10=10, J=11, Q=12, K=13, A=14, 2=15
+        values = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]; // 3 to A, then 2
+    }
+    else { // 'war' or 'viewer' - standard card values for comparison, Ace can be 1
+      values = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 1]; // Ace as 1 for sorting/comparison in War/Viewer
     }
 
-    shuffle() {
-        for (let i = this.cards.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
+    // Create standard cards based on numDecks
+    for (let i = 0; i < settings.numDecks; i++) {
+      for (let suit of suits) {
+        for (let j = 0; j < ranks.length; j++) {
+          this.cards.push(new Card(suit, ranks[j], values[j]));
         }
+      }
     }
 
-    deal() {
-        // Deal one card from the top of the deck
-        if (this.cards.length === 0) {
-            console.warn("Deck is empty!");
-            return null;
+    // Optionally include two jokers if specified (primarily for Deck Viewer and Doudizhu)
+    if (settings.includeJokers) {
+      // For Doudizhu, jokers have distinct high values
+      if (settings.gameType === 'doudizhu') {
+          this.cards.push(new Card(null, 'JOKER', 16, 'black')); // Black Joker (Small Joker)
+          this.cards.push(new Card(null, 'JOKER', 17, 'red'));   // Red Joker (Big Joker)
+      } else {
+          this.cards.push(new Card(null, 'JOKER', null, 'black'));
+          this.cards.push(new Card(null, 'JOKER', null, 'red'));
+      }
+    }
+  }
+
+  shuffle() {
+    for (let i = this.cards.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
+    }
+  }
+
+  deal() {
+    // Deal one card from the top of the deck
+    if (this.cards.length === 0) {
+      console.warn("Deck is empty!");
+      return null;
+    }
+    return this.cards.shift();
+  }
+
+  dealHalf() {
+    // Ensure the deck has an odd number of cards for a fair deal
+    if (this.cards.length % 2 !== 0) {
+      console.warn("Deck has an odd number of cards. Dealing might be uneven.");
+    }
+    const half = Math.ceil(this.cards.length / 2);
+    // Use splice to modify the original array and return the first half
+    const playerCards = this.cards.splice(0, half);
+    const enemyCards = this.cards; // The rest goes to the enemy
+    this.cards = []; // The deck is now empty after dealing out all cards
+    return [playerCards, enemyCards];
+  }
+
+  sort() {
+    this.cards.sort((a, b) => {
+      // Place jokers at the end, Black Joker before Red Joker if both present
+      if (a.rank === 'JOKER' && b.rank !== 'JOKER') return 1;
+      if (b.rank === 'JOKER' && a.rank !== 'JOKER') return -1;
+      if (a.rank === 'JOKER' && b.rank === 'JOKER') {
+        // Specific sorting for Doudizhu jokers (Black Joker < Red Joker)
+        if (this.gameType === 'doudizhu') {
+            return a.value - b.value; // Use assigned joker values (16, 17)
         }
-        return this.cards.shift();
-    }
+        if (a.color === 'black' && b.color === 'red') return -1;
+        if (a.color === 'red' && b.color === 'black') return 1;
+        return 0; // Same type of joker
+      }
 
-    dealHalf() {
-        // Ensure the deck has an odd number of cards for a fair deal
-        if (this.cards.length % 2 !== 0) {
-            console.warn("Deck has an odd number of cards. Dealing might be uneven.");
-        }
-        const half = Math.ceil(this.cards.length / 2);
-        // Use splice to modify the original array and return the first half
-        const playerCards = this.cards.splice(0, half);
-        const enemyCards = this.cards; // The rest goes to the enemy
-        this.cards = []; // The deck is now empty after dealing out all cards
-        return [playerCards, enemyCards];
-    }
-
-    sort() {
-        this.cards.sort((a, b) => {
-            // Place jokers at the end, Black Joker before Red Joker if both present
-            if (a.rank === 'JOKER' && b.rank !== 'JOKER') return 1;
-            if (b.rank === 'JOKER' && a.rank !== 'JOKER') return -1;
-            if (a.rank === 'JOKER' && b.rank === 'JOKER') {
-                // Specific sorting for Doudizhu jokers (Black Joker < Red Joker)
-                if (this.gameType === 'doudizhu') {
-                    return a.value - b.value; // Use assigned joker values (16, 17)
-                }
-                if (a.color === 'black' && b.color === 'red') return -1;
-                if (a.color === 'red' && b.color === 'black') return 1;
-                return 0; // Same type of joker
-            }
-
-            const suitOrder = { '♠': 0, '♥': 1, '♦': 2, '♣': 3 };
-            // Ensure suits are valid before comparing
-            if (a.suit && b.suit && a.suit !== b.suit) {
-                return suitOrder[a.suit] - suitOrder[b.suit];
-            }
-            return a.value - b.value;
-        });
-    }
+      const suitOrder = { '♠': 0, '♥': 1, '♦': 2, '♣': 3 };
+      // Ensure suits are valid before comparing
+      if (a.suit && b.suit && a.suit !== b.suit) {
+        return suitOrder[a.suit] - suitOrder[b.suit];
+      }
+      return a.value - b.value;
+    });
+  }
 }
 
 // Map suit symbols to name for filename construction
 const suitMap = {
-    '♠': 'spades',
-    '♥': 'hearts',
-    '♦': 'diamonds',
-    '♣': 'clubs'
+  '♠': 'spades',
+  '♥': 'hearts',
+  '♦': 'diamonds',
+  '♣': 'clubs'
 };
 
 // Generate filename for each card, using the required format
 function getCardFileName(card) {
-    if (!card) return 'card_back.svg'; // Default to card back if no card is provided
-    if (card.rank === 'JOKER') {
-        return `${card.color.toLowerCase()}_joker.svg`;
-    } else {
-        const rankPart = card.rank;
-        const suitPart = suitMap[card.suit];
-        return `${rankPart}_of_${suitPart}.svg`;
-    }
+  if (!card) return 'card_back.svg'; // Default to card back if no card is provided
+  if (card.rank === 'JOKER') {
+    return `${card.color.toLowerCase()}_joker.svg`;
+  } else {
+    const rankPart = card.rank;
+    const suitPart = suitMap[card.suit];
+    return `${rankPart}_of_${suitPart}.svg`;
+  }
 }
 
 // --- Global Variables (for all games) ---
@@ -332,19 +330,19 @@ const opponent2Label = document.getElementById('opponent2-label');
 
 // Helper function to update the back button's text and action
 function updateBackButton(text, handler) {
-    // This function now specifically targets the back button on the *currently active* game screen.
-    // We need to ensure the correct back button is updated based on the active screen.
-    // The HTML has multiple back buttons.
-    if (gameScreen.style.display === 'block' && backButton) {
-        backButton.innerText = text;
-        backButton.onclick = handler;
-    } else if (doudizhuGameScreen.style.display === 'block' && doudizhuGameBackButton) {
-        doudizhuGameBackButton.innerText = text;
-        doudizhuGameBackButton.onclick = handler;
-    } else if (doudizhuLobbyScreen.style.display === 'block' && lobbyBackButton) {
-        lobbyBackButton.innerText = text;
-        lobbyBackButton.onclick = handler;
-    }
+  // This function now specifically targets the back button on the *currently active* game screen.
+  // We need to ensure the correct back button is updated based on the active screen.
+  // The HTML has multiple back buttons.
+  if (gameScreen.style.display === 'block' && backButton) {
+    backButton.innerText = text;
+    backButton.onclick = handler;
+  } else if (doudizhuGameScreen.style.display === 'block' && doudizhuGameBackButton) {
+    doudizhuGameBackButton.innerText = text;
+    doudizhuGameBackButton.onclick = handler;
+  } else if (doudizhuLobbyScreen.style.display === 'block' && lobbyBackButton) {
+    lobbyBackButton.innerText = text;
+    lobbyBackButton.onclick = handler;
+  }
 }
 
 // Helper to update card counts on screen (primarily for War)
@@ -363,54 +361,54 @@ function togglePlayerInfo(show) {
 // Renders a hand of cards by creating <img> elements for each card
 // Added a `hideHoleCard` parameter for Blackjack dealer's first turn
 function renderHand(containerId, cards, clickable = true, hideHoleCard = false) {
-    const container = document.getElementById(containerId);
-    container.innerHTML = '';
-    if (!cards || cards.length === 0) return;
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  if (!cards || cards.length === 0) return;
 
-    cards.forEach((card, index) => {
-        const img = document.createElement('img');
-        img.className = 'card';
-        img.style.zIndex = index; // For overlapping effect
+  cards.forEach((card, index) => {
+    const img = document.createElement('img');
+    img.className = 'card';
+    img.style.zIndex = index; // For overlapping effect
 
-        // If it's the dealer's hand and hideHoleCard is true and it's the second card
-        if (containerId === 'enemy-hand' && hideHoleCard && index === 1) {
-            img.src = `assets/cards/card_back.svg`; // Show card back
-            img.alt = `Card Back`;
-        } else {
-            img.src = `assets/cards/${getCardFileName(card)}`;
-            img.alt = card.toString();
-        }
+    // If it's the dealer's hand and hideHoleCard is true and it's the second card
+    if (containerId === 'enemy-hand' && hideHoleCard && index === 1) {
+        img.src = `assets/cards/card_back.svg`; // Show card back
+        img.alt = `Card Back`;
+    } else {
+        img.src = `assets/cards/${getCardFileName(card)}`;
+        img.alt = card.toString();
+    }
 
-        if (clickable) {
-            img.addEventListener('click', () => {
-                focusCard(card, index);
-            });
-        }
+    if (clickable) {
+      img.addEventListener('click', () => {
+        focusCard(card, index);
+      });
+    }
 
-        container.appendChild(img);
-    });
+    container.appendChild(img);
+  });
 }
 
 // Renders a single, magnified card for the Deck Viewer's focus mode
 function renderFocusedCard(card) {
-    // This function is specifically for the Deck Viewer, which uses playerHandDiv
-    playerHandDiv.innerHTML = ''; // Clear existing hand
+  // This function is specifically for the Deck Viewer, which uses playerHandDiv
+  playerHandDiv.innerHTML = ''; // Clear existing hand
 
-    const focusedCardDisplay = document.createElement('div');
-    focusedCardDisplay.className = 'focused-card-display'; // Apply specific styling
+  const focusedCardDisplay = document.createElement('div');
+  focusedCardDisplay.className = 'focused-card-display'; // Apply specific styling
 
-    const img = document.createElement('img');
-    img.className = 'card focused'; // Add 'focused' class for CSS styling
-    img.src = `assets/cards/${getCardFileName(card)}`;
-    img.alt = card.toString();
-    // Clicking focused card now returns to the *current* full deck view
-    img.addEventListener('click', returnToFullDeckView);
+  const img = document.createElement('img');
+  img.className = 'card focused'; // Add 'focused' class for CSS styling
+  img.src = `assets/cards/${getCardFileName(card)}`;
+  img.alt = card.toString();
+  // Clicking focused card now returns to the *current* full deck view
+  img.addEventListener('click', returnToFullDeckView);
 
-    focusedCardDisplay.appendChild(img);
-    playerHandDiv.appendChild(focusedCardDisplay);
+  focusedCardDisplay.appendChild(img);
+  playerHandDiv.appendChild(focusedCardDisplay);
 
-    // Update result div with focused card info
-    resultDiv.innerText = `Focused: ${card.toString()}`;
+  // Update result div with focused card info
+  resultDiv.innerText = `Focused: ${card.toString()}`;
 }
 
 
@@ -612,102 +610,102 @@ function endBlackjackGame() {
 // --- Game Initialization Functions ---
 
 function startBlackjack() {
-    showScreen('game-screen', 'Blackjack'); // Use the generic game screen
-    resultDiv.innerText = 'Dealing...';
+  showScreen('game-screen', 'Blackjack'); // Use the generic game screen
+  resultDiv.innerText = 'Dealing...';
 
-    // Reset game state for a new hand, but keep win counters
-    playerHand = [];
-    dealerHand = [];
-    gameStatus = 'playing';
-    // Create a new Deck for Blackjack with 2 decks and specific values
-    blackjackDeck = new Deck({ numDecks: 2, gameType: 'blackjack' });
-    blackjackDeck.shuffle();
+  // Reset game state for a new hand, but keep win counters
+  playerHand = [];
+  dealerHand = [];
+  gameStatus = 'playing';
+  // Create a new Deck for Blackjack with 2 decks and specific values
+  blackjackDeck = new Deck({ numDecks: 2, gameType: 'blackjack' });
+  blackjackDeck.shuffle();
 
-    // Clear hands display
-    playerHandDiv.innerHTML = '';
-    enemyHandDiv.innerHTML = '';
+  // Clear hands display
+  playerHandDiv.innerHTML = '';
+  enemyHandDiv.innerHTML = '';
 
-    // Deal initial cards
-    playerHand.push(blackjackDeck.deal());
-    dealerHand.push(blackjackDeck.deal()); // Dealer's face-up card
-    playerHand.push(blackjackDeck.deal());
-    dealerHand.push(blackjackDeck.deal()); // Dealer's face-down (hole) card
+  // Deal initial cards
+  playerHand.push(blackjackDeck.deal());
+  dealerHand.push(blackjackDeck.deal()); // Dealer's face-up card
+  playerHand.push(blackjackDeck.deal());
+  dealerHand.push(blackjackDeck.deal()); // Dealer's face-down (hole) card
 
-    // Show player info divs (now for scores)
-    togglePlayerInfo(true);
+  // Show player info divs (now for scores)
+  togglePlayerInfo(true);
 
-    // Set justify-content for Blackjack hands to center
-    playerHandDiv.style.justifyContent = 'center';
-    enemyHandDiv.style.justifyContent = 'center';
+  // Set justify-content for Blackjack hands to center
+  playerHandDiv.style.justifyContent = 'center';
+  enemyHandDiv.style.justifyContent = 'center';
 
-    // Create Hit/Stand buttons (if they don't exist)
-    // Ensure they are appended to 'game-area' or a suitable container
-    if (!document.getElementById('hit-button')) {
-        hitButton = document.createElement('button');
-        hitButton.id = 'hit-button';
-        hitButton.innerText = 'Hit';
-        hitButton.onclick = hit;
-        hitButton.classList.add('game-action-button'); // Apply general button styling
-        document.getElementById('game-area').appendChild(hitButton);
+  // Create Hit/Stand buttons (if they don't exist)
+  // Ensure they are appended to 'game-area' or a suitable container
+  if (!document.getElementById('hit-button')) {
+      hitButton = document.createElement('button');
+      hitButton.id = 'hit-button';
+      hitButton.innerText = 'Hit';
+      hitButton.onclick = hit;
+      hitButton.classList.add('game-action-button'); // Apply general button styling
+      document.getElementById('game-area').appendChild(hitButton);
 
-        standButton = document.createElement('button');
-        standButton.id = 'stand-button';
-        standButton.innerText = 'Stand';
-        standButton.onclick = stand;
-        standButton.classList.add('game-action-button'); // Apply general button styling
-        document.getElementById('game-area').appendChild(standButton);
-    }
+      standButton = document.createElement('button');
+      standButton.id = 'stand-button';
+      standButton.innerText = 'Stand';
+      standButton.onclick = stand;
+      standButton.classList.add('game-action-button'); // Apply general button styling
+      document.getElementById('game-area').appendChild(standButton);
+  }
 
-    // Ensure "Play Again" button is hidden at the start of a new round
-    playTurnButton.style.display = 'none';
-    console.log("startBlackjack: playTurnButton.style.display set to 'none'."); // DEBUG
+  // Ensure "Play Again" button is hidden at the start of a new round
+  playTurnButton.style.display = 'none';
+  console.log("startBlackjack: playTurnButton.style.display set to 'none'."); // DEBUG
 
-    // Update initial UI
-    updateBlackjackUI(); // This will now set the initial score in resultDiv
+  // Update initial UI
+  updateBlackjackUI(); // This will now set the initial score in resultDiv
 
-    // Check for immediate Blackjacks (before player takes action)
-    const playerValue = calculateHandValue(playerHand);
-    const dealerValue = calculateHandValue(dealerHand); // Actual value for internal check
+  // Check for immediate Blackjacks (before player takes action)
+  const playerValue = calculateHandValue(playerHand);
+  const dealerValue = calculateHandValue(dealerHand); // Actual value for internal check
 
-    if (playerValue === 21 && playerHand.length === 2) {
-        resultDiv.innerText = 'BLACKJACK! You win!';
-        endBlackjackGame(); // Ends the game immediately
-    } else if (dealerValue === 21 && dealerHand.length === 2) {
-        resultDiv.innerText = 'Dealer has BLACKJACK! Dealer wins.';
-        endBlackjackGame(); // Ends the game immediately
-    } else {
-        // If no immediate Blackjack, resultDiv is already updated by updateBlackjackUI()
-        // No explicit prompt needed here, as updateBlackjackUI handles it.
-    }
+  if (playerValue === 21 && playerHand.length === 2) {
+      resultDiv.innerText = 'BLACKJACK! You win!';
+      endBlackjackGame(); // Ends the game immediately
+  } else if (dealerValue === 21 && dealerHand.length === 2) {
+      resultDiv.innerText = 'Dealer has BLACKJACK! Dealer wins.';
+      endBlackjackGame(); // Ends the game immediately
+  } else {
+      // If no immediate Blackjack, resultDiv is already updated by updateBlackjackUI()
+      // No explicit prompt needed here, as updateBlackjackUI handles it.
+  }
 }
 
 
 function startWar() {
-    showScreen('game-screen', 'War'); // Use the generic game screen
-    const deck = new Deck({ gameType: 'war' }); // Use new Deck constructor
-    deck.shuffle();
-    [playerDeck, enemyDeck] = deck.dealHalf();
+  showScreen('game-screen', 'War'); // Use the generic game screen
+  const deck = new Deck({ gameType: 'war' }); // Use new Deck constructor
+  deck.shuffle();
+  [playerDeck, enemyDeck] = deck.dealHalf();
 
-    playTurnButton.style.display = 'inline-block';
-    playTurnButton.innerText = 'Play Turn';
-    playTurnButton.onclick = playWarTurn; // THIS IS THE CRUCIAL LINE FOR WAR
-    console.log("startWar: playTurnButton.onclick set to playWarTurn."); // DEBUG: Check this line
-    resultDiv.innerText = 'Ready to play War!';
+  playTurnButton.style.display = 'inline-block';
+  playTurnButton.innerText = 'Play Turn';
+  playTurnButton.onclick = playWarTurn; // THIS IS THE CRUCIAL LINE FOR WAR
+  console.log("startWar: playTurnButton.onclick set to playWarTurn."); // DEBUG: Check this line
+  resultDiv.innerText = 'Ready to play War!';
 
-    renderHand('player-hand', []); // Start with empty hands shown
-    renderHand('enemy-hand', []);
+  renderHand('player-hand', []); // Start with empty hands shown
+  renderHand('enemy-hand', []);
 
-    // Hide Blackjack specific buttons (already handled by showScreen, but good to be explicit)
-    if (hitButton) hitButton.style.display = 'none';
-    if (standButton) standButton.style.display = 'none';
+  // Hide Blackjack specific buttons (already handled by showScreen, but good to be explicit)
+  if (hitButton) hitButton.style.display = 'none';
+  if (standButton) standButton.style.display = 'none';
 
-    // Center the single cards in War
-    playerHandDiv.style.justifyContent = 'center';
-    enemyHandDiv.style.justifyContent = 'center';
+  // Center the single cards in War
+  playerHandDiv.style.justifyContent = 'center';
+  enemyHandDiv.style.justifyContent = 'center';
 
-    // Show player info divs
-    togglePlayerInfo(true);
-    updateCardCounts(); // Initial card count
+  // Show player info divs
+  togglePlayerInfo(true);
+  updateCardCounts(); // Initial card count
 }
 
 function playWarTurn() {
@@ -746,7 +744,7 @@ function playWarTurn() {
             // Player lays 3 cards face down, 1 face up
             for (let i = 0; i < 3; i++) playerWarCards.push(playerDeck.shift());
             playerWarCards.push(playerDeck.shift()); // The face up card
-
+            
             // Enemy lays 3 cards face down, 1 face up
             for (let i = 0; i < 3; i++) enemyWarCards.push(enemyDeck.shift());
             enemyWarCards.push(enemyDeck.shift()); // The face up card
@@ -791,24 +789,74 @@ function playWarTurn() {
 
 
 function showDeckViewer() {
-    showScreen('game-screen', 'Deck Viewer'); // Use the generic game screen
-    const deck = new Deck({ includeJokers: true, gameType: 'viewer' }); // Use new Deck constructor
-    deck.shuffle();
-    deck.sort();
-    currentDeck = deck.cards; // Store this specific deck instance
-    focusedCardIndex = -1; // Reset focused index
+  showScreen('game-screen', 'Deck Viewer'); // Use the generic game screen
+  const deck = new Deck({ includeJokers: true, gameType: 'viewer' }); // Use new Deck constructor
+  deck.shuffle();
+  deck.sort();
+  currentDeck = deck.cards; // Store this specific deck instance
+  focusedCardIndex = -1; // Reset focused index
 
-    // Render the full sorted deck
-    renderHand('player-hand', currentDeck, true); // Cards are clickable in Deck Viewer
-    enemyHandDiv.innerHTML = ''; // Hide enemy hand
+  // Render the full sorted deck
+  renderHand('player-hand', currentDeck, true); // Cards are clickable in Deck Viewer
+  enemyHandDiv.innerHTML = ''; // Hide enemy hand
+  playTurnButton.style.display = 'none'; // Hide play turn button
+  console.log("showDeckViewer: playTurnButton.style.display set to 'none'."); // DEBUG
+
+  // Hide Blackjack specific buttons (already handled by showScreen)
+  if (hitButton) hitButton.style.display = 'none';
+  if (standButton) standButton.style.display = 'none';
+
+  resultDiv.innerText = 'Click a card to focus, use arrow keys to navigate.';
+
+  // Reset justify-content for Deck Viewer
+  playerHandDiv.style.justifyContent = 'flex-start';
+  enemyHandDiv.style.justifyContent = 'flex-start';
+
+  // Hide player info divs (already handled by showScreen)
+  togglePlayerInfo(false);
+
+  // When entering the Deck Viewer, set the back button to "Back to Menu"
+  updateBackButton('Back to Menu', returnToMenu);
+}
+
+// Manages focusing a card in the Deck Viewer
+function focusCard(card, index = -1) {
+  focusedCardIndex = index;
+  currentDeck = currentDeck || []; // Ensure currentDeck is initialized
+
+  renderFocusedCard(card);
+
+  // Hide enemy hand and play turn button when viewing a focused card (already handled by showScreen for initial view)
+  enemyHandDiv.innerHTML = '';
+  playTurnButton.style.display = 'none';
+  console.log("focusCard: playTurnButton.style.display set to 'none'."); // DEBUG
+
+  // Hide specific Blackjack buttons if they exist (already handled by showScreen for initial view)
+  if (hitButton) hitButton.style.display = 'none';
+  if (standButton) standButton.style.display = 'none';
+
+  // Hide player info divs (already handled by showScreen for initial view)
+  togglePlayerInfo(false);
+
+  // When a card is focused, change the back button to "Return to Deck"
+  updateBackButton('Return to Deck', returnToFullDeckView);
+}
+
+// Returns to the full deck view within the Deck Viewer
+function returnToFullDeckView() {
+  if (currentDeck) {
+    // Render the existing deck state without creating a new deck
+    renderHand('player-hand', currentDeck, true);
+    enemyHandDiv.innerHTML = ''; // Clear enemy hand area
     playTurnButton.style.display = 'none'; // Hide play turn button
-    console.log("showDeckViewer: playTurnButton.style.display set to 'none'."); // DEBUG
+    console.log("returnToFullDeckView: playTurnButton.style.display set to 'none'."); // DEBUG
 
-    // Hide Blackjack specific buttons (already handled by showScreen)
+    // Hide specific Blackjack buttons (already handled by showScreen)
     if (hitButton) hitButton.style.display = 'none';
     if (standButton) standButton.style.display = 'none';
 
     resultDiv.innerText = 'Click a card to focus, use arrow keys to navigate.';
+    focusedCardIndex = -1; // Reset focused index
 
     // Reset justify-content for Deck Viewer
     playerHandDiv.style.justifyContent = 'flex-start';
@@ -817,200 +865,150 @@ function showDeckViewer() {
     // Hide player info divs (already handled by showScreen)
     togglePlayerInfo(false);
 
-    // When entering the Deck Viewer, set the back button to "Back to Menu"
+    // When returning to full deck view, change the back button back to "Back to Menu"
     updateBackButton('Back to Menu', returnToMenu);
-}
-
-// Manages focusing a card in the Deck Viewer
-function focusCard(card, index = -1) {
-    focusedCardIndex = index;
-    currentDeck = currentDeck || []; // Ensure currentDeck is initialized
-
-    renderFocusedCard(card);
-
-    // Hide enemy hand and play turn button when viewing a focused card (already handled by showScreen for initial view)
-    enemyHandDiv.innerHTML = '';
-    playTurnButton.style.display = 'none';
-    console.log("focusCard: playTurnButton.style.display set to 'none'."); // DEBUG
-
-    // Hide specific Blackjack buttons if they exist (already handled by showScreen for initial view)
-    if (hitButton) hitButton.style.display = 'none';
-    if (standButton) standButton.style.display = 'none';
-
-    // Hide player info divs (already handled by showScreen for initial view)
-    togglePlayerInfo(false);
-
-    // When a card is focused, change the back button to "Return to Deck"
-    updateBackButton('Return to Deck', returnToFullDeckView);
-}
-
-// Returns to the full deck view within the Deck Viewer
-function returnToFullDeckView() {
-    if (currentDeck) {
-        // Render the existing deck state without creating a new deck
-        renderHand('player-hand', currentDeck, true);
-        enemyHandDiv.innerHTML = ''; // Clear enemy hand area
-        playTurnButton.style.display = 'none'; // Hide play turn button
-        console.log("returnToFullDeckView: playTurnButton.style.display set to 'none'."); // DEBUG
-
-        // Hide specific Blackjack buttons (already handled by showScreen)
-        if (hitButton) hitButton.style.display = 'none';
-        if (standButton) standButton.style.display = 'none';
-
-        resultDiv.innerText = 'Click a card to focus, use arrow keys to navigate.';
-        focusedCardIndex = -1; // Reset focused index
-
-        // Reset justify-content for Deck Viewer
-        playerHandDiv.style.justifyContent = 'flex-start';
-        enemyHandDiv.style.justifyContent = 'flex-start';
-
-        // Hide player info divs (already handled by showScreen)
-        togglePlayerInfo(false);
-
-        // When returning to full deck view, change the back button back to "Back to Menu"
-        updateBackButton('Back to Menu', returnToMenu);
-    } else {
-        // Fallback: If currentDeck is somehow not set (e.g., direct deep link), re-initialize the viewer
-        showDeckViewer();
-    }
+  } else {
+    // Fallback: If currentDeck is somehow not set (e.g., direct deep link), re-initialize the viewer
+    showDeckViewer();
+  }
 }
 
 // Add arrow key navigation for focused card in Deck Viewer
 document.addEventListener('keydown', (event) => {
-    // Only respond to keydown if the Deck Viewer screen is active
-    if (gameScreen.style.display === 'block' && gameTitle.innerText === 'Deck Viewer') {
-        if (focusedCardIndex !== -1 && currentDeck && currentDeck.length > 0) {
-            if (event.key === 'ArrowLeft' && focusedCardIndex > 0) {
-                focusedCardIndex--;
-                renderFocusedCard(currentDeck[focusedCardIndex]);
-            } else if (event.key === 'ArrowRight' && focusedCardIndex < currentDeck.length - 1) {
-                focusedCardIndex++;
-                renderFocusedCard(currentDeck[focusedCardIndex]);
-            }
-        }
+  // Only respond to keydown if the Deck Viewer screen is active
+  if (gameScreen.style.display === 'block' && gameTitle.innerText === 'Deck Viewer') {
+    if (focusedCardIndex !== -1 && currentDeck && currentDeck.length > 0) {
+      if (event.key === 'ArrowLeft' && focusedCardIndex > 0) {
+        focusedCardIndex--;
+        renderFocusedCard(currentDeck[focusedCardIndex]);
+      } else if (event.key === 'ArrowRight' && focusedCardIndex < currentDeck.length - 1) {
+        focusedCardIndex++;
+        renderFocusedCard(currentDeck[focusedCardIndex]);
+      }
     }
+  }
 });
 
 function returnToMenu() {
-    document.getElementById('menu-screen').style.display = 'block';
-    gameScreen.style.display = 'none'; // Hide generic game screen
-    doudizhuGameScreen.style.display = 'none'; // Hide Doudizhu game screen
-    doudizhuLobbyScreen.style.display = 'none'; // Hide Doudizhu lobby screen
+  document.getElementById('menu-screen').style.display = 'block';
+  gameScreen.style.display = 'none'; // Hide generic game screen
+  doudizhuGameScreen.style.display = 'none'; // Hide Doudizhu game screen
+  doudizhuLobbyScreen.style.display = 'none'; // Hide Doudizhu lobby screen
 
-    // If there's an active game listener, unsubscribe
-    if (doudizhuGameUnsubscribe) {
-        doudizhuGameUnsubscribe();
-        doudizhuGameUnsubscribe = null;
-        console.log("Firestore game listener unsubscribed.");
-    }
-    currentGameId = null; // Clear current game ID
+  // If there's an active game listener, unsubscribe
+  if (doudizhuGameUnsubscribe) {
+      doudizhuGameUnsubscribe();
+      doudizhuGameUnsubscribe = null;
+      console.log("Firestore game listener unsubscribed.");
+  }
+  currentGameId = null; // Clear current game ID
 
-    // Reset game state for a clean return to menu for all games
-    playerDeck = [];
-    enemyDeck = [];
-    currentDeck = null;
-    focusedCardIndex = -1;
-    playTurnButton.disabled = false;
-    playTurnButton.style.display = 'none';
-    playTurnButton.onclick = null; // Explicitly clear handler
-    console.log("returnToMenu: playTurnButton.style.display set to 'none', onclick cleared."); // DEBUG
+  // Reset game state for a clean return to menu for all games
+  playerDeck = [];
+  enemyDeck = [];
+  currentDeck = null;
+  focusedCardIndex = -1;
+  playTurnButton.disabled = false;
+  playTurnButton.style.display = 'none';
+  playTurnButton.onclick = null; // Explicitly clear handler
+  console.log("returnToMenu: playTurnButton.style.display set to 'none', onclick cleared."); // DEBUG
 
-    // Hide specific Blackjack buttons
-    if (hitButton) hitButton.style.display = 'none';
-    if (standButton) standButton.style.display = 'none';
+  // Hide specific Blackjack buttons
+  if (hitButton) hitButton.style.display = 'none';
+  if (standButton) standButton.style.display = 'none';
 
-    // Reset Blackjack specific variables (but keep win counters)
-    blackjackDeck = null;
-    playerHand = [];
-    dealerHand = [];
-    gameStatus = 'playing';
+  // Reset Blackjack specific variables (but keep win counters)
+  blackjackDeck = null;
+  playerHand = [];
+  dealerHand = [];
+  gameStatus = 'playing';
 
-    // Reset Doudizhu specific variables
-    doudizhuGameState = {
-        players: {},
-        landlordPile: [],
-        lastPlayedPattern: null,
-        lastPlayedCards: [],
-        currentTurnUserId: null,
-        gameState: 'lobby',
-        bids: {},
-        landlordUserId: null,
-        gameStarted: false,
-        gameRound: 0,
-        playerOrder: [],
-        passesInRound: 0
-    };
+  // Reset Doudizhu specific variables
+  doudizhuGameState = {
+    players: {},
+    landlordPile: [],
+    lastPlayedPattern: null,
+    lastPlayedCards: [],
+    currentTurnUserId: null,
+    gameState: 'lobby',
+    bids: {},
+    landlordUserId: null,
+    gameStarted: false,
+    gameRound: 0,
+    playerOrder: [],
+    passesInRound: 0
+  };
 
-    // Hide player info divs (used by War/Blackjack)
-    togglePlayerInfo(false);
+  // Hide player info divs (used by War/Blackjack)
+  togglePlayerInfo(false);
 
-    // Clear hands display for all games
-    playerHandDiv.innerHTML = '';
-    enemyHandDiv.innerHTML = '';
-    doudizhuPlayerHandDiv.innerHTML = '';
-    doudizhuOpponent1HandDiv.innerHTML = '';
-    doudizhuOpponent2HandDiv.innerHTML = '';
-    doudizhuPlayedCardsDiv.innerHTML = '';
+  // Clear hands display for all games
+  playerHandDiv.innerHTML = '';
+  enemyHandDiv.innerHTML = '';
+  doudizhuPlayerHandDiv.innerHTML = '';
+  doudizhuOpponent1HandDiv.innerHTML = '';
+  doudizhuOpponent2HandDiv.innerHTML = '';
+  doudizhuPlayedCardsDiv.innerHTML = '';
 
 
-    // Reset justify-content for hands (used by War/Blackjack/Deck Viewer)
-    playerHandDiv.style.justifyContent = 'flex-start';
-    enemyHandDiv.style.justifyContent = 'flex-start';
+  // Reset justify-content for hands (used by War/Blackjack/Deck Viewer)
+  playerHandDiv.style.justifyContent = 'flex-start';
+  enemyHandDiv.style.justifyContent = 'flex-start';
 
-    resultDiv.innerText = ''; // Clear result text for generic screen
-    doudizhuResultDiv.innerText = ''; // Clear result text for Doudizhu screen
+  resultDiv.innerText = ''; // Clear result text for generic screen
+  doudizhuResultDiv.innerText = ''; // Clear result text for Doudizhu screen
 
-    // Hide Doudizhu specific buttons and labels
-    if (doudizhuPlayButton) doudizhuPlayButton.style.display = 'none';
-    if (doudizhuPassButton) doudizhuPassButton.style.display = 'none';
-    if (doudizhuBiddingButtonsDiv) doudizhuBiddingButtonsDiv.style.display = 'none';
-    if (doudizhuCurrentPatternDiv) doudizhuCurrentPatternDiv.style.display = 'none';
+  // Hide Doudizhu specific buttons and labels
+  if (doudizhuPlayButton) doudizhuPlayButton.style.display = 'none';
+  if (doudizhuPassButton) doudizhuPassButton.style.display = 'none';
+  if (doudizhuBiddingButtonsDiv) doudizhuBiddingButtonsDiv.style.display = 'none';
+  if (doudizhuCurrentPatternDiv) doudizhuCurrentPatternDiv.style.display = 'none';
 
-    // Clear lobby specific UI
-    lobbyMessage.innerText = '';
-    currentGameCodeSpan.style.display = 'none';
-    displayGameCodeSpan.innerText = '';
-    gameCodeInput.value = '';
-    lobbyPlayerList.innerHTML = '';
+  // Clear lobby specific UI
+  lobbyMessage.innerText = '';
+  currentGameCodeSpan.style.display = 'none';
+  displayGameCodeSpan.innerText = '';
+  gameCodeInput.value = '';
+  lobbyPlayerList.innerHTML = '';
 }
 
 // Centralized function to show a specific screen
 function showScreen(screenId, title = '') {
-    // Hide all main screens
-    document.getElementById('menu-screen').style.display = 'none';
-    gameScreen.style.display = 'none';
-    doudizhuGameScreen.style.display = 'none';
-    doudizhuLobbyScreen.style.display = 'none';
+  // Hide all main screens
+  document.getElementById('menu-screen').style.display = 'none';
+  gameScreen.style.display = 'none';
+  doudizhuGameScreen.style.display = 'none';
+  doudizhuLobbyScreen.style.display = 'none';
 
-    // Show the requested screen
-    document.getElementById(screenId).style.display = 'block';
+  // Show the requested screen
+  document.getElementById(screenId).style.display = 'block';
 
-    // Set titles if applicable
-    if (screenId === 'game-screen') {
-        gameTitle.innerText = title;
-    } else if (screenId === 'doudizhu-game-screen') {
-        doudizhuGameTitle.innerText = title;
-    }
+  // Set titles if applicable
+  if (screenId === 'game-screen') {
+    gameTitle.innerText = title;
+  } else if (screenId === 'doudizhu-game-screen') {
+    doudizhuGameTitle.innerText = title;
+  }
 
-    // Reset common game controls (for War/Blackjack)
-    playTurnButton.disabled = false;
-    playTurnButton.style.display = 'none';
-    playTurnButton.onclick = null; // Explicitly clear handler
-    console.log(`showScreen(${screenId}): playTurnButton.style.display set to 'none', onclick cleared.`); // DEBUG
+  // Reset common game controls (for War/Blackjack)
+  playTurnButton.disabled = false;
+  playTurnButton.style.display = 'none';
+  playTurnButton.onclick = null; // Explicitly clear handler
+  console.log(`showScreen(${screenId}): playTurnButton.style.display set to 'none', onclick cleared.`); // DEBUG
 
-    if (hitButton) hitButton.style.display = 'none';
-    if (standButton) standButton.style.display = 'none';
+  if (hitButton) hitButton.style.display = 'none';
+  if (standButton) standButton.style.display = 'none';
 
-    togglePlayerInfo(false);
+  togglePlayerInfo(false);
 
-    playerHandDiv.style.justifyContent = 'flex-start';
-    enemyHandDiv.style.justifyContent = 'flex-start';
+  playerHandDiv.style.justifyContent = 'flex-start';
+  enemyHandDiv.style.justifyContent = 'flex-start';
 
-    resultDiv.innerText = '';
-    doudizhuResultDiv.innerText = '';
+  resultDiv.innerText = '';
+  doudizhuResultDiv.innerText = '';
 
-    // Default back button behavior
-    updateBackButton('Back to Menu', returnToMenu);
+  // Default back button behavior
+  updateBackButton('Back to Menu', returnToMenu);
 }
 
 // --- Doudizhu Lobby Functions ---
@@ -1226,7 +1224,7 @@ function updateDoudizhuLobbyAndGameUI() {
 
         lobbyPlayerList.innerHTML = '';
         const playersArray = Object.values(doudizhuGameState.players);
-        playersArray.sort((a, b) => a.playerIndex - b.playerIndex); // Sort by assigned index
+        playersArray.sort((a,b) => a.playerIndex - b.playerIndex); // Sort by assigned index
 
         playersArray.forEach(player => {
             const li = document.createElement('li');
