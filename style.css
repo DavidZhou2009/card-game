@@ -1,35 +1,46 @@
-body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  text-align: center;
-  padding: 20px;
-  background-color: #e0f2f7; /* Light blue background */
-  color: #333;
+/* General Reset */
+* {
   margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f9;
+  color: #333;
   display: flex;
-  flex-direction: column;
+  justify-content: center;
+  align-items: center;
   min-height: 100vh;
+  padding: 20px;
+}
+
+/* Screen Styles */
+#menu-screen,
+#game-screen,
+#doudizhu-lobby-screen,
+#doudizhu-game-screen {
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  max-width: 1200px;
+  width: 100%;
+  text-align: center;
 }
 
 h1 {
-  color: #2c3e50;
-  margin-bottom: 30px;
-}
-
-h2 {
-  color: #34495e;
   margin-bottom: 20px;
+  font-size: 2.5rem;
+  color: #2c3e50;
 }
 
-/* --- Menu Screen Styling --- */
-#menu-screen {
-  margin-top: 50px;
-}
-
+/* Menu Screen */
 #menu-screen button {
   display: block;
-  width: 250px;
-  padding: 15px 25px;
   margin: 15px auto;
+  padding: 15px 30px;
   font-size: 1.2rem;
   border: none;
   border-radius: 8px;
@@ -37,12 +48,12 @@ h2 {
   color: white;
   cursor: pointer;
   transition: background-color 0.3s ease, transform 0.2s ease;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
 #menu-screen button:hover {
   background-color: #0056b3;
-  transform: translateY(-3px);
+  transform: translateY(-2px);
 }
 
 #menu-screen button:active {
@@ -50,341 +61,322 @@ h2 {
   transform: translateY(0);
 }
 
-/* --- Generic Game Screen Styling (War, Blackjack, Deck Viewer) --- */
-#game-screen {
-  flex-grow: 1; /* Allows game screen to take available space */
+/* Game Screen (War, Blackjack, Deck Viewer) */
+#game-screen #game-area {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 20px;
 }
 
-#game-area {
-  margin: 20px 0;
+.player-info {
   display: flex;
-  flex-direction: column; /* Stack info blocks and hands vertically */
-  align-items: center; /* Center content horizontally */
-  width: 100%;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.1rem;
+  margin: 10px 0;
+}
+
+.player-label {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.card-count {
+  color: #e74c3c;
+  font-weight: bold;
 }
 
 .hand {
   display: flex;
-  /* Justify content will be set by JS for War, default flex-start for Deck Viewer */
-  justify-content: flex-start;
-  align-items: flex-start; /* Align cards at the top for proper display */
-  margin: 20px 0; /* Space between hands */
-  overflow-x: auto; /* Allow horizontal scrolling */
-  padding: 15px 0; /* Increased padding to prevent top/bottom cutoff on hover */
-  position: relative;
-  flex-wrap: nowrap; /* Keep cards in one line */
-  width: 90%; /* Use width for the scrolling area */
-  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-  scrollbar-width: thin; /* Firefox scrollbar */
-  scrollbar-color: #888 #f1f1f1; /* Firefox scrollbar */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 10px;
+  max-width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: #007bff #e9ecef;
 }
 
-/* Custom scrollbar for Webkit browsers */
 .hand::-webkit-scrollbar {
   height: 8px;
 }
 
-.hand::-webkit-scrollbar-thumb {
-  background-color: #888;
-  border-radius: 10px;
+.hand::-webkit-scrollbar-track {
+  background: #e9ecef;
+  border-radius: 4px;
 }
 
-.hand::-webkit-scrollbar-track {
-  background-color: #f1f1f1;
+.hand::-webkit-scrollbar-thumb {
+  background: #007bff;
+  border-radius: 4px;
+}
+
+.hand::-webkit-scrollbar-thumb:hover {
+  background: #0056b3;
 }
 
 .card {
   width: 80px;
   height: 120px;
-  border: 1px solid #777; /* Standard card border */
+  border: 2px solid #ccc;
   border-radius: 8px;
-  background-color: white;
-  margin-left: -35px; /* Reduced negative margin for less overlap */
-  cursor: pointer; /* Keep cursor pointer to indicate clickability */
-  box-sizing: border-box;
-  overflow: hidden;
-  position: relative;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
-  flex-shrink: 0; /* Prevent cards from shrinking */
+  margin-left: -35px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
 .card:first-child {
-  margin-left: 0; /* First card doesn't have negative margin */
+  margin-left: 0;
 }
 
-/* --- Focused Card Styling (for Deck Viewer) --- */
-.focused-card-display {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 40px auto; /* Centering and spacing */
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.card img {
   width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  object-fit: cover;
 }
 
-.card.focused {
-  width: 160px; /* Magnified size */
-  height: 240px;
-  margin: 0; /* No overlap when focused */
-  transform: none; /* Ensure no residual hover transform */
-  box-shadow: none; /* Removed shadow when focused */
-  border: 2px solid #777; /* Same gray border as unfocused cards */
-  cursor: pointer; /* Still clickable to return to deck */
-  z-index: 1000; /* Ensure it's on top of everything else */
-}
-
-/* --- Player Info and Card Count Styling (War, Blackjack) --- */
-.player-info {
-  display: none; /* Hidden by default, shown only in War game via JS */
-  flex-direction: row; /* Arrange label and count in a row */
-  align-items: center;
-  justify-content: center; /* Center the info block itself */
-  margin-top: 15px; /* Space above each player's info block */
-  margin-bottom: 5px; /* Space between label and hand */
-  font-size: 1.1rem;
-  color: #34495e;
-  width: 90%; /* Match hand width for alignment */
-}
-
-.player-label {
+#result {
+  margin: 20px 0;
+  font-size: 1.3rem;
   font-weight: bold;
-  margin-right: 5px; /* Space between label and count */
+  color: #e74c3c;
 }
 
-.card-count {
-  font-weight: normal;
-  color: #2c3e50;
-  font-size: 1.1rem;
-}
-
-
-/* --- Game Control Buttons and Results (War, Blackjack) --- */
-#play-turn, #game-screen button {
+#play-turn,
+#back-button,
+#lobby-back-button,
+#doudizhu-game-back-button {
   padding: 12px 25px;
   font-size: 1.1rem;
-  margin: 20px 10px;
+  margin: 10px;
   border: none;
   border-radius: 6px;
-  background-color: #28a745; /* Green for play, blue for back */
+  background-color: #28a745;
   color: white;
   cursor: pointer;
   transition: background-color 0.3s ease, transform 0.2s ease;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
-#game-screen button { /* Back to menu button */
-  background-color: #6c757d; /* Grey for back */
-}
-
-#play-turn:hover {
+#play-turn:hover,
+#back-button:hover,
+#lobby-back-button:hover,
+#doudizhu-game-back-button:hover {
   background-color: #218838;
   transform: translateY(-2px);
 }
 
-#game-screen button:hover {
-  background-color: #5a6268;
+#play-turn:active,
+#back-button:active,
+#lobby-back-button:active,
+#doudizhu-game-back-button:active {
+  background-color: #1e7e34;
+  transform: translateY(0);
+}
+
+/* Blackjack-specific buttons */
+.game-action-button {
+  padding: 12px 25px;
+  font-size: 1.1rem;
+  margin: 10px;
+  border: none;
+  border-radius: 6px;
+  background-color: #28a745;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+.game-action-button:hover {
+  background-color: #218838;
   transform: translateY(-2px);
 }
 
-#play-turn:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
+.game-action-button:active {
+  background-color: #1e7e34;
+  transform: translateY(0);
 }
 
-#result {
-  font-size: 1.4rem;
-  font-weight: bold;
-  margin-top: 20px;
-  color: #e74c3c; /* Red for results */
-  min-height: 30px; /* Reserve space for text */
-}
-
-/* --- Doudizhu Specific Styling --- */
-#doudizhu-game-screen, #doudizhu-lobby-screen {
-  flex-grow: 1;
+/* Doudizhu Lobby Screen */
+#doudizhu-lobby-screen .lobby-actions {
   display: flex;
-  flex-direction: column;
-  align-items: center; /* Center content horizontally */
-  justify-content: space-between; /* Distribute space vertically */
-  padding: 20px;
-  background-color: #d4edda; /* Slightly different background for Doudizhu */
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0;
 }
 
-#doudizhu-game-title {
-  color: #155724;
-  margin-bottom: 20px;
+#game-code-input {
+  padding: 10px;
+  font-size: 1rem;
+  border: 2px solid #ccc;
+  border-radius: 6px;
+  width: 200px;
 }
 
+#join-game-button,
+#create-game-button {
+  padding: 10px 20px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 6px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+#join-game-button:hover,
+#create-game-button:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+}
+
+#lobby-message {
+  color: #e74c3c;
+  font-size: 1.1rem;
+  margin: 10px 0;
+}
+
+#current-game-code {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+#lobby-info {
+  margin-top: 20px;
+}
+
+#lobby-player-list {
+  list-style: none;
+  padding: 0;
+}
+
+#lobby-player-list li {
+  font-size: 1.1rem;
+  margin: 5px 0;
+  color: #34495e;
+}
+
+/* Doudizhu Game Screen */
 #doudizhu-game-area {
   display: grid;
-  /* Define grid areas for layout */
-  grid-template-columns: 1fr 2fr 1fr; /* Left Opponent | Played Cards | Right Opponent */
-  grid-template-rows: 1fr auto 1fr; /* Top Opponent | Middle (Played) | Player */
   grid-template-areas:
-    "opponent1 center-area opponent2"
-    ". center-area ."
-    "player-hand player-hand player-hand"; /* Player hand spans full width at bottom */
-  width: 100%;
-  max-width: 1000px; /* Limit width for better layout on large screens */
-  flex-grow: 1;
-  gap: 10px; /* Space between grid items */
-  padding: 20px 0;
-  margin: auto; /* Center the grid container itself */
+    "opponent1 center opponent2"
+    "player player player";
+  grid-template-columns: 1fr 2fr 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 20px;
+  padding: 20px;
 }
 
-.doudizhu-player-area {
+#opponent1-area {
+  grid-area: opponent1;
+}
+
+#doudizhu-center-area {
+  grid-area: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end; /* Align player hand to bottom */
-  grid-area: player-hand;
-  margin-top: 20px; /* Space above player hand */
+  gap: 10px;
+}
+
+#opponent2-area {
+  grid-area: opponent2;
+}
+
+#doudizhu-player-area {
+  grid-area: player;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
 .doudizhu-opponent-area {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start; /* Align opponent hands to top */
-  padding: 10px;
-  border: 1px solid #c3e6cb;
-  border-radius: 10px;
-  background-color: #f8f9fa;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  position: relative; /* For rotation */
-  overflow: hidden; /* Hide overflowing cards if rotated */
-}
-
-.doudizhu-opponent-top {
-    grid-area: opponent1; /* This will be the left opponent */
-    transform: rotate(-15deg); /* Angle slightly */
-    transform-origin: bottom right; /* Rotate from bottom right corner */
-    justify-content: flex-end; /* Align cards to the bottom of their area */
-}
-
-.doudizhu-opponent-right {
-    grid-area: opponent2; /* This will be the right opponent */
-    transform: rotate(15deg); /* Angle slightly */
-    transform-origin: bottom left; /* Rotate from bottom left corner */
-    justify-content: flex-end; /* Align cards to the bottom of their area */
-}
-
-#doudizhu-center-area {
-  grid-area: center-area;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center; /* Center played cards vertically */
-  padding: 10px;
-  border: 2px dashed #a3d9b4; /* Dashed border for play area */
-  border-radius: 15px;
-  background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent background */
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
-  min-height: 150px; /* Ensure it's visible */
-}
-
-
-.doudizhu-hand-label {
-  font-weight: bold;
-  margin-bottom: 10px;
-  color: #218838;
-  font-size: 1.1em;
-}
-
-#doudizhu-current-pattern {
-    font-size: 1em;
-    color: #4a4a4a;
-    margin-top: 10px;
-    font-weight: normal;
-}
-
-#doudizhu-pattern-text {
-    font-weight: bold;
-    color: #007bff;
+  gap: 10px;
 }
 
 .doudizhu-hand {
   display: flex;
-  justify-content: center; /* Center cards in Doudizhu hands */
-  align-items: flex-end; /* Align cards at the bottom for player hand, top for others */
-  min-height: 120px; /* Ensure space for cards even when empty */
+  flex-wrap: nowrap;
   overflow-x: auto;
-  padding: 10px 0;
-  width: 100%; /* Take full width of its container */
-  -webkit-overflow-scrolling: touch;
+  padding: 10px;
+  max-width: 100%;
   scrollbar-width: thin;
-  scrollbar-color: #888 #f1f1f1;
+  scrollbar-color: #007bff #e9ecef;
 }
 
-/* Specific adjustments for opponent hands (card backs) */
-.doudizhu-hand.opponent-hand .card {
-  /* No special styling needed here, as script.js handles image source */
-  /* Ensure they are not clickable and don't lift on hover */
-  cursor: default;
-  transform: none !important;
-  box-shadow: none !important;
-  margin-top: 0 !important;
+.doudizhu-hand::-webkit-scrollbar {
+  height: 8px;
 }
 
-/* Specific adjustments for played cards hand */
-.doudizhu-hand.played-cards-hand {
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap; /* Allow played cards to wrap */
-  min-height: 100px;
-}
-.doudizhu-hand.played-cards-hand .card {
-    margin-left: -10px; /* Less overlap for played cards */
-    width: 60px;
-    height: 90px;
-    cursor: default;
-}
-.doudizhu-hand.played-cards-hand .card:first-child {
-    margin-left: 0;
+.doudizhu-hand::-webkit-scrollbar-track {
+  background: #e9ecef;
+  border-radius: 4px;
 }
 
+.doudizhu-hand::-webkit-scrollbar-thumb {
+  background: #007bff;
+  border-radius: 4px;
+}
+
+.doudizhu-hand::-webkit-scrollbar-thumb:hover {
+  background: #0056b3;
+}
 
 .doudizhu-card {
-  /* Inherits .card properties, but can be overridden */
-  width: 70px; /* Slightly smaller cards for Doudizhu */
+  width: 70px;
   height: 105px;
-  margin-left: -30px; /* Adjust overlap */
-  transition: transform 0.2s ease, box-shadow 0.2s ease, margin-top 0.2s ease; /* Add margin-top for selection */
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  margin-left: -30px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, margin-top 0.3s ease;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
 .doudizhu-card:first-child {
   margin-left: 0;
 }
 
-.doudizhu-card.selected {
-  margin-top: -20px; /* Lift selected card */
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-  border-color: #007bff; /* Highlight border */
+.doudizhu-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
-#doudizhu-action-buttons, #doudizhu-bidding-buttons {
-  margin-top: 20px;
-  display: flex; /* Arrange buttons in a row */
-  gap: 15px; /* Space between buttons */
+.doudizhu-card img {
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.doudizhu-card.selected {
+  margin-top: -20px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  border-color: #007bff;
+  z-index: 1000; /* Ensure selected cards are on top */
 }
 
 #doudizhu-action-buttons button,
-#doudizhu-bidding-buttons button,
-#doudizhu-game-back-button, /* Specific back button for game screen */
-#lobby-back-button, /* Specific back button for lobby screen */
-#doudizhu-lobby-screen button /* All buttons in lobby screen */
-{
+#doudizhu-bidding-buttons button {
   padding: 12px 25px;
   font-size: 1.1rem;
   border: none;
   border-radius: 6px;
-  background-color: #007bff; /* Blue for actions */
+  background-color: #007bff;
   color: white;
   cursor: pointer;
   transition: background-color 0.3s ease, transform 0.2s ease;
@@ -392,191 +384,105 @@ h2 {
 }
 
 #doudizhu-action-buttons button:hover,
-#doudizhu-bidding-buttons button:hover,
-#doudizhu-game-back-button:hover,
-#lobby-back-button:hover,
-#doudizhu-lobby-screen button:hover {
+#doudizhu-bidding-buttons button:hover {
   background-color: #0056b3;
   transform: translateY(-2px);
 }
 
-#doudizhu-game-back-button, #lobby-back-button {
-  background-color: #6c757d; /* Grey for back button */
-  margin-top: 30px;
+.doudizhu-action-button {
+  padding: 12px 25px;
+  font-size: 1.1rem;
+  border: none;
+  border-radius: 6px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
-#doudizhu-game-back-button:hover, #lobby-back-button:hover {
-  background-color: #5a6268;
+.doudizhu-action-button:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+}
+
+.doudizhu-action-button:active {
+  background-color: #004085;
+  transform: translateY(0);
+}
+
+#doudizhu-current-pattern {
+  font-size: 1.1rem;
+  color: #34495e;
+  margin-top: 10px;
 }
 
 #doudizhu-result {
-  font-size: 1.2rem;
-  font-weight: bold;
-  margin-top: 20px;
-  color: #007bff; /* Blue for Doudizhu results */
-  min-height: 30px;
-}
-
-/* --- Lobby Screen Specific Styles --- */
-#doudizhu-lobby-screen {
-  text-align: center;
-  padding: 20px;
-}
-
-#doudizhu-lobby-screen p {
-  font-size: 1.1rem;
-  margin-bottom: 10px;
-}
-
-#doudizhu-lobby-screen .lobby-actions {
   margin: 20px 0;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #e74c3c;
 }
 
-#doudizhu-lobby-screen input[type="text"] {
-  padding: 10px 15px;
-  font-size: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  width: 200px;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-#lobby-info {
-  margin-top: 30px;
-  padding: 20px;
-  border: 1px solid #a3d9b4;
-  border-radius: 10px;
-  background-color: rgba(255, 255, 255, 0.8);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  max-width: 500px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-#lobby-info h3 {
-  color: #218838;
-  margin-bottom: 15px;
-}
-
-#lobby-player-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-#lobby-player-list li {
-  padding: 8px 0;
-  border-bottom: 1px dashed #c3e6cb;
-  color: #34495e;
-}
-
-#lobby-player-list li:last-child {
-  border-bottom: none;
-}
-
-/* --- Responsive Adjustments --- */
+/* Responsive Design */
 @media (max-width: 768px) {
-  /* Adjust grid for smaller screens */
-  #doudizhu-game-area {
-    grid-template-columns: 1fr; /* Stack elements vertically */
-    grid-template-rows: auto auto auto auto;
-    grid-template-areas:
-      "opponent1"
-      "center-area"
-      "opponent2"
-      "player-hand";
-    gap: 5px;
-    padding: 10px 0;
+  #menu-screen,
+  #game-screen,
+  #doudizhu-lobby-screen,
+  #doudizhu-game-screen {
+    padding: 15px;
   }
 
-  .doudizhu-opponent-top, .doudizhu-opponent-right {
-    transform: none; /* Remove rotation on smaller screens */
-    margin: 5px 0;
+  h1 {
+    font-size: 2rem;
   }
 
-  .doudizhu-player-area {
-    margin-top: 10px;
-  }
-
-  .doudizhu-hand {
-    padding: 5px 0;
-  }
-
-  .doudizhu-card {
-    width: 55px; /* Even smaller cards for Doudizhu on mobile */
-    height: 82px;
-    margin-left: -20px;
-  }
-
-  .doudizhu-card.selected {
-    margin-top: -15px;
-  }
-
-  #doudizhu-action-buttons button,
-  #doudizhu-bidding-buttons button,
-  #doudizhu-game-back-button,
-  #lobby-back-button,
-  #doudizhu-lobby-screen button {
-    font-size: 0.9rem;
-    padding: 8px 15px;
-    margin: 5px 5px;
-  }
-
-  #doudizhu-result {
-    font-size: 1rem;
-  }
-
-  /* General game screen adjustments for small screens */
-  .hand {
-    width: 95%; /* Wider for smaller screens */
-    padding: 10px 0; /* Less vertical padding, adjust for small screens */
+  #menu-screen button {
+    padding: 12px 25px;
+    font-size: 1.1rem;
   }
 
   .card {
     width: 60px;
     height: 90px;
-    margin-left: -25px; /* Adjust overlap */
+    margin-left: -20px; /* Reduced overlap for mobile */
   }
 
-  .card.focused {
-    width: 120px;
-    height: 180px;
+  .doudizhu-card {
+    width: 55px;
+    height: 82px;
+    margin-left: -15px; /* Reduced overlap for mobile */
   }
 
-  .player-info {
-    width: 95%; /* Match hand width for alignment on small screens */
-    font-size: 1rem;
-  }
-  .card-count {
-    font-size: 1rem;
-  }
-
-  #menu-screen button {
-    width: 200px;
-    font-size: 1rem;
-    padding: 12px 20px;
+  #doudizhu-game-area {
+    grid-template-areas:
+      "opponent1"
+      "center"
+      "opponent2"
+      "player";
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto;
   }
 
-  #play-turn, #game-screen button {
-    font-size: 1rem;
-    padding: 10px 20px;
-    margin: 15px 5px;
+  .doudizhu-opponent-area,
+  #doudizhu-center-area,
+  #doudizhu-player-area {
+    justify-content: center;
   }
 
-  #result {
-    font-size: 1.2rem;
-  }
-
-  #doudizhu-lobby-screen .lobby-actions {
+  .lobby-actions {
     flex-direction: column;
-    align-items: center;
+    gap: 10px;
   }
-  #doudizhu-lobby-screen input[type="text"] {
-    width: 80%;
+
+  #game-code-input {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  #join-game-button,
+  #create-game-button {
+    width: 100%;
+    max-width: 300px;
   }
 }
