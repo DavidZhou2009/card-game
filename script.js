@@ -1639,6 +1639,9 @@ function nextDoudizhuTurn() {
 
   // Check for round end condition:
   // A round ends if two players have passed consecutively, or if the turn cycles back to the player who last played.
+  // The condition `doudizhuPlayerWhoLastPlayed !== null && doudizhuCurrentTurn === doudizhuPlayerWhoLastPlayed`
+  // means the turn has come back to the player who made the last successful play,
+  // implying everyone else has passed.
   if (doudizhuConsecutivePasses >= 2 || (doudizhuPlayerWhoLastPlayed !== null && doudizhuCurrentTurn === doudizhuPlayerWhoLastPlayed)) {
     doudizhuResultDiv.innerText = `New round can begin! Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn to start.`;
     doudizhuLastPlayedPattern = null; // Clear the pattern to start a new round
