@@ -248,6 +248,9 @@ let lobbyStatusMessage;
 let currentLobbyCode = null; // The code for the lobby this client is in
 let myPlayerId = 'Player-' + Math.random().toString(36).substring(2, 8); // Unique ID for this browser instance
 let currentLobbyPlayers = []; // Array of {id: '...', role: '...', isHost: bool}
+let playerOrder = []; // Stores the ordered IDs of players for the current game instance
+let myGameIndex = -1; // My index in the playerOrder array for the current game
+let opponentIdsInOrder = []; // IDs of the two opponents in the fixed display order
 
 // BroadcastChannel for inter-tab communication (pseudo-multiplayer)
 const lobbyChannel = new BroadcastChannel('doudizhu-lobby');
@@ -844,6 +847,9 @@ function returnToMenu() {
   // Reset Multiplayer variables
   currentLobbyCode = null;
   currentLobbyPlayers = [];
+  playerOrder = [];
+  myGameIndex = -1;
+  opponentIdsInOrder = [];
   if (lobbyStatusMessage) lobbyStatusMessage.innerText = '';
   if (lobbyPlayerList) lobbyPlayerList.innerHTML = '';
   if (startGameButton) startGameButton.style.display = 'none'; // Hide start game button
@@ -962,8 +968,12 @@ function updateDoudizhuUI() {
     if (doudizhuCurrentPatternDiv) doudizhuCurrentPatternDiv.style.display = 'block'; // Show current pattern
     if (doudizhuPatternTextSpan) doudizhuPatternTextSpan.innerText = doudizhuLastPlayedPattern ? doudizhuLastPlayedPattern.type + (doudizhuLastPlayedPattern.value ? ` (${doudizhuLastPlayedPattern.value})` : '') : 'None';
     
+    // Determine player names for display
+    const landlordName = currentLobbyPlayers.find(p => p.id === playerOrder[doudizhuLandlord])?.name || playerOrder[doudizhuLandlord].substring(0,6);
+    const currentTurnName = currentLobbyPlayers.find(p => p.id === playerOrder[doudizhuCurrentTurn])?.name || playerOrder[doudizhuCurrentTurn].substring(0,6);
+
     // Control player action buttons based on current turn
-    if (doudizhuCurrentTurn === 0) { // It's the player's turn
+    if (playerOrder[doudizhuCurrentTurn] === myPlayerId) { // It's this client's turn
       if (doudizhuPlayButton) doudizhuPlayButton.style.display = 'inline-block';
       if (doudizhuPassButton) doudizhuPassButton.style.display = 'inline-block';
       if (doudizhuPlayButton) doudizhuPlayButton.disabled = false; // Ensure enabled
@@ -975,7 +985,7 @@ function updateDoudizhuUI() {
       if (doudizhuPassButton) doudizhuPassButton.disabled = true; // Ensure disabled
     }
     if (doudizhuBiddingButtonsDiv) doudizhuBiddingButtonsDiv.style.display = 'none'; // Hide bidding buttons
-    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `Landlord: ${doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2'}. Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn!`;
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `Landlord: ${landlordName}. ${currentTurnName}'s turn!`;
   }
 }
 
@@ -1079,6 +1089,7 @@ function startDoudizhu() {
   if (doudizhuCurrentBidderIndex !== 0) {
     setTimeout(() => {
       let aiHand;
+      // In single player, doudizhuOpponent1Hand and doudizhuOpponent2Hand are directly populated
       if (doudizhuCurrentBidderIndex === 1) aiHand = doudizhuOpponent1Hand;
       else if (doudizhuCurrentBidderIndex === 2) aiHand = doudizhuOpponent2Hand;
       const aiBidDecision = aiMakeBid(doudizhuCurrentBidderIndex, aiHand);
@@ -1177,7 +1188,9 @@ function assignLandlordCardsAndStartGame() {
   doudizhuLandlordPile = []; // Clear the landlord pile after assignment
 
   doudizhuGameState = 'playing';
-  if (doudizhuResultDiv) doudizhuResultDiv.innerText = `Player ${doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2'} is the Landlord!`;
+  // In single player, playerOrder is not used, so determine landlord name based on doudizhuLandlord index
+  const landlordName = doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2';
+  if (doudizhuResultDiv) doudizhuResultDiv.innerText = `${landlordName} is the Landlord!`;
 
   // Set initial turn to the landlord
   doudizhuCurrentTurn = doudizhuLandlord;
@@ -1191,11 +1204,11 @@ function assignLandlordCardsAndStartGame() {
   updateDoudizhuUI(); // Update UI for playing phase
 
   // Explicitly enable/disable player buttons based on whose turn it is
-  if (doudizhuCurrentTurn === 0) { // Player is landlord
+  if (doudizhuCurrentTurn === 0) { // Player is landlord (in single player)
     if (doudizhuPlayButton) doudizhuPlayButton.disabled = false;
     if (doudizhuPassButton) doudizhuPassButton.disabled = false;
     // No need to call nextDoudizhuTurn here, player takes their turn
-  } else { // AI is landlord
+  } else { // AI is landlord (in single player)
     if (doudizhuPlayButton) doudizhuPlayButton.disabled = true;
     if (doudizhuPassButton) doudizhuPassButton.disabled = true;
     // Trigger the first AI turn via nextDoudizhuTurn's internal setTimeout
@@ -1664,7 +1677,7 @@ function playDoudizhuCards() {
     doudizhuLastPlayedCards = selectedCards;
     doudizhuLastPlayedPattern = newPattern;
     doudizhuConsecutivePasses = 0; // Reset consecutive passes after a successful play
-    doudizhuPlayerWhoLastPlayed = 0; // Player (index 0) played these cards
+    doudizhuPlayerWhoLastPlayed = myGameIndex; // Player's index in playerOrder played these cards
 
     // Deselect cards in UI
     selectedElements.forEach(el => el.classList.remove('selected'));
@@ -1718,7 +1731,7 @@ function nextDoudizhuTurn() {
 
   console.log(`Current consecutive passes: ${doudizhuConsecutivePasses}`);
   console.log(`Player who last played: ${doudizhuPlayerWhoLastPlayed}`);
-  console.log(`Next turn is for player index: ${doudizhuCurrentTurn}`);
+  console.log(`Next turn is for player index (in playerOrder): ${doudizhuCurrentTurn}`);
 
   // Check for round end condition:
   // A round ends if two players have passed consecutively, or if the turn cycles back to the player who last played.
@@ -1726,20 +1739,22 @@ function nextDoudizhuTurn() {
   // means the turn has come back to the player who made the last successful play,
   // implying everyone else has passed.
   if (doudizhuConsecutivePasses >= 2 || (doudizhuPlayerWhoLastPlayed !== null && doudizhuCurrentTurn === doudizhuPlayerWhoLastPlayed)) {
-    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `New round can begin! Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn to start.`;
+    const currentTurnName = currentLobbyPlayers.find(p => p.id === playerOrder[doudizhuCurrentTurn])?.name || playerOrder[doudizhuCurrentTurn].substring(0,6);
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `New round can begin! ${currentTurnName}'s turn to start.`;
     doudizhuLastPlayedPattern = null; // Clear the pattern to start a new round
     doudizhuLastPlayedCards = [];
     doudizhuConsecutivePasses = 0; // Reset pass counter
     doudizhuPlayerWhoLastPlayed = null; // Reset
     console.log("Round cleared. New round starting.");
   } else {
-    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `Landlord: ${doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2'}. Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn!`;
+    // Message already updated in updateDoudizhuUI based on currentTurn
   }
 
   updateDoudizhuUI();
 
   // If it's an AI opponent's turn, trigger their move
-  if (doudizhuGameState === 'playing' && doudizhuCurrentTurn !== 0) { // 0 is player
+  // Only trigger AI if the current turn's player is not this client
+  if (doudizhuGameState === 'playing' && playerOrder[doudizhuCurrentTurn] !== myPlayerId) {
     // Use a nested setTimeout to ensure AI action and then turn progression
     setTimeout(() => {
       doudizhuOpponentTurn(); // AI takes its action
@@ -1754,7 +1769,7 @@ function nextDoudizhuTurn() {
 
 // --- Doudizhu Opponent AI Logic ---
 function doudizhuOpponentTurn() {
-  console.log(`Opponent ${doudizhuCurrentTurn} turn.`);
+  console.log(`Opponent ${playerOrder[doudizhuCurrentTurn].substring(0,6)} turn.`);
 
   // Immediately hide and disable player buttons when AI's turn starts
   if (doudizhuPlayButton) {
@@ -1766,42 +1781,48 @@ function doudizhuOpponentTurn() {
     doudizhuPassButton.disabled = true;
   }
 
-  let opponentHand;
-  if (doudizhuCurrentTurn === 1) {
-    opponentHand = doudizhuOpponent1Hand;
-  } else if (doudizhuCurrentTurn === 2) {
-    opponentHand = doudizhuOpponent2Hand;
+  let opponentHandToPlayFrom;
+  const currentTurnPlayerId = playerOrder[doudizhuCurrentTurn];
+
+  // Map the current turn's player ID to the correct hand variable for AI
+  if (currentTurnPlayerId === opponentIdsInOrder[0]) {
+      opponentHandToPlayFrom = doudizhuOpponent1Hand;
+  } else if (currentTurnPlayerId === opponentIdsInOrder[1]) {
+      opponentHandToPlayFrom = doudizhuOpponent2Hand;
+  } else {
+      console.error("AI turn called for invalid player ID or this client's ID. Should not happen.");
+      return;
   }
 
   // Sort opponent's hand for AI logic (even if not rendered face up)
-  opponentHand.sort((a, b) => a.value - b.value);
+  opponentHandToPlayFrom.sort((a, b) => a.value - b.value);
 
-  const possiblePlays = findPossiblePlays(opponentHand, doudizhuLastPlayedPattern);
+  const possiblePlays = findPossiblePlays(opponentHandToPlayFrom, doudizhuLastPlayedPattern);
 
   if (possiblePlays.length > 0) {
     // For a basic AI, play the first valid pattern found (which will be the "smallest" due to sorting in findPossiblePlays)
     const play = possiblePlays[0];
-    console.log(`Opponent ${doudizhuCurrentTurn} plays:`, play.cards.map(c => c.toString()));
+    console.log(`Opponent ${currentTurnPlayerId.substring(0,6)} plays:`, play.cards.map(c => c.toString()));
 
-    // Remove played cards from opponent's hand
-    if (doudizhuCurrentTurn === 1) {
+    // Update the correct opponent's hand after playing cards
+    if (currentTurnPlayerId === opponentIdsInOrder[0]) {
       doudizhuOpponent1Hand = doudizhuOpponent1Hand.filter(card => !play.cards.includes(card));
-    } else if (doudizhuCurrentTurn === 2) {
+    } else if (currentTurnPlayerId === opponentIdsInOrder[1]) {
       doudizhuOpponent2Hand = doudizhuOpponent2Hand.filter(card => !play.cards.includes(card));
     }
 
     doudizhuLastPlayedCards = play.cards;
     doudizhuLastPlayedPattern = play.pattern;
     doudizhuConsecutivePasses = 0;
-    doudizhuPlayerWhoLastPlayed = doudizhuCurrentTurn;
+    doudizhuPlayerWhoLastPlayed = doudizhuCurrentTurn; // Store global index
 
-    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `Opponent ${doudizhuCurrentTurn === 1 ? '1' : '2'} played: ${play.pattern.type}`;
-    if (play.pattern.type !== 'Rocket' && play.pattern.type !== 'Bomb') {
+    const displayPlayerName = currentLobbyPlayers.find(p => p.id === currentTurnPlayerId)?.name || currentTurnPlayerId.substring(0,6);
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `${displayPlayerName} played: ${play.pattern.type}`;
+    if (play.pattern.type !== 'Rocket' && play.pattern.type !== 'Bomb') { // Use play.pattern.type here
       if (doudizhuResultDiv) doudizhuResultDiv.innerText += ` (Value: ${play.pattern.value}).`;
     } else {
       if (doudizhuResultDiv) doudizhuResultDiv.innerText += `.`;
     }
-
 
     // Check for opponent win
     if (checkDoudizhuWinCondition()) {
@@ -1809,8 +1830,9 @@ function doudizhuOpponentTurn() {
     }
 
   } else {
-    console.log(`Opponent ${doudizhuCurrentTurn} passes.`);
-    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `Opponent ${doudizhuCurrentTurn === 1 ? '1' : '2'} passed.`;
+    const displayPlayerName = currentLobbyPlayers.find(p => p.id === currentTurnPlayerId)?.name || currentTurnPlayerId.substring(0,6);
+    console.log(`${displayPlayerName} passes.`);
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `${displayPlayerName} passed.`;
     doudizhuConsecutivePasses++;
   }
 
@@ -2318,8 +2340,8 @@ function startMultiplayerDoudizhu() {
     }
 
     // Determine random player order
-    const playerOrder = shuffleArray([...currentLobbyPlayers.map(p => p.id)]);
-    const landlordIndex = Math.floor(Math.random() * 3); // Randomly choose initial landlord
+    playerOrder = shuffleArray([...currentLobbyPlayers.map(p => p.id)]);
+    const landlordIndex = Math.floor(Math.random() * 3); // Randomly choose initial landlord (index in playerOrder)
 
     // Broadcast that the game has started
     lobbyChannel.postMessage({
@@ -2343,39 +2365,36 @@ function shuffleArray(array) {
 
 
 // This function is called by all clients in the lobby when game starts
-function startDoudizhuGameInstance(playerOrder, initialLandlordIndex) {
+function startDoudizhuGameInstance(gamePlayerOrder, initialLandlordIndex) {
     showScreen('doudizhu-game-screen', 'Doudizhu Online');
 
-    // Assign player roles and IDs for the game instance
-    let myPlayerIndex = playerOrder.indexOf(myPlayerId);
-    if (myPlayerIndex === -1) {
-        console.error("My player ID not found in the game order. This should not happen.");
-        // Fallback to single player if something went wrong
-        startDoudizhu();
+    // Update global playerOrder for this game instance
+    playerOrder = gamePlayerOrder;
+
+    // Assign myGameIndex and opponentIdsInOrder for this client
+    myGameIndex = playerOrder.indexOf(myPlayerId);
+    opponentIdsInOrder = playerOrder.filter(id => id !== myPlayerId);
+
+    if (myGameIndex === -1) {
+        console.error("My player ID not found in the game order. Falling back to single player setup.");
+        startDoudizhu(); // Fallback to single player if this client somehow isn't in the game
         return;
     }
 
-    // For Doudizhu, there are 3 players. We'll map them based on playerOrder
-    // Player 0: This client (myPlayerId)
-    // Player 1: The next player in the order
-    // Player 2: The player after that
-    // This simplifies the Doudizhu game logic, even though it's still local simulation.
-    // In a real multiplayer game, this would be handled by the server.
-
-    // Reset single player Doudizhu specific variables (important to ensure clean slate)
-    doudizhuDeck = null;
+    // Reset Doudizhu specific variables for a clean game start
+    doudizhuDeck = null; // Will be created below
     doudizhuPlayerHand = [];
     doudizhuOpponent1Hand = [];
     doudizhuOpponent2Hand = [];
     doudizhuLandlordPile = [];
     doudizhuPlayedCards = [];
-    doudizhuGameState = 'playing'; // Starts directly in playing state
-    doudizhuLandlord = initialLandlordIndex; // Set landlord based on broadcasted info
-    doudizhuBids = [];
-    doudizhuCurrentBidderIndex = 0; // Not used in playing phase, handled by doudizhuCurrentTurn
+    doudizhuGameState = 'playing'; // Starts directly in playing state in multiplayer
+    doudizhuLandlord = initialLandlordIndex; // Index in playerOrder
+    doudizhuBids = []; // Not used in playing phase
+    doudizhuCurrentBidderIndex = 0; // Not used in playing phase
     doudizhuLastPlayedPattern = null;
     doudizhuLastPlayedCards = [];
-    doudizhuCurrentTurn = 0; // The first player in playerOrder starts
+    doudizhuCurrentTurn = 0; // The first player in playerOrder starts (index 0)
     doudizhuConsecutivePasses = 0;
     doudizhuPlayerWhoLastPlayed = null;
 
@@ -2388,52 +2407,37 @@ function startDoudizhuGameInstance(playerOrder, initialLandlordIndex) {
     const allCards = [...deck.cards]; // Get all cards from the deck
     const numCardsPerPlayer = 17;
 
-    // Distribute cards for 3 players
-    const hands = [[], [], []]; // Player 0, Player 1, Player 2
+    // Distribute cards for 3 players into temporary hands in playerOrder sequence
+    const tempHands = [[], [], []];
     for (let i = 0; i < numCardsPerPlayer; i++) {
-        hands[0].push(allCards.shift());
-        hands[1].push(allCards.shift());
-        hands[2].push(allCards.shift());
+        tempHands[0].push(allCards.shift()); // Hand for playerOrder[0]
+        tempHands[1].push(allCards.shift()); // Hand for playerOrder[1]
+        tempHands[2].push(allCards.shift()); // Hand for playerOrder[2]
     }
     doudizhuLandlordPile = allCards; // Remaining 3 cards are landlord pile
 
-    // Assign hands based on player order (myPlayerId will be playerHand)
-    doudizhuPlayerHand = hands[playerOrder.indexOf(myPlayerId)];
-    doudizhuOpponent1Hand = hands[playerOrder.filter(id => id !== myPlayerId)[0]];
-    doudizhuOpponent2Hand = hands[playerOrder.filter(id => id !== myPlayerId)[1]];
-
-    // Sort player's hand for display
-    doudizhuPlayerHand.sort((a, b) => a.value - b.value);
-    doudizhuOpponent1Hand.sort((a, b) => a.value - b.value); // Sort for AI logic
-    doudizhuOpponent2Hand.sort((a, b) => a.value - b.value); // Sort for AI logic
-
+    // Assign hands to global variables using their actual index in playerOrder
+    doudizhuPlayerHand = tempHands[myGameIndex];
+    doudizhuOpponent1Hand = tempHands[playerOrder.indexOf(opponentIdsInOrder[0])];
+    doudizhuOpponent2Hand = tempHands[playerOrder.indexOf(opponentIdsInOrder[1])];
 
     // Add landlord pile to the chosen landlord's hand
-    const landlordId = playerOrder[doudizhuLandlord];
-    if (landlordId === myPlayerId) {
-        doudizhuPlayerHand.push(...doudizhuLandlordPile);
-        doudizhuPlayerHand.sort((a, b) => a.value - b.value);
-    } else if (landlordId === playerOrder.filter(id => id !== myPlayerId)[0]) {
-        doudizhuOpponent1Hand.push(...doudizhuLandlordPile);
-        doudizhuOpponent1Hand.sort((a, b) => a.value - b.value);
-    } else { // landlordId === playerOrder.filter(id => id !== myPlayerId)[1]
-        doudizhuOpponent2Hand.push(...doudizhuLandlordPile);
-        doudizhuOpponent2Hand.sort((a, b) => a.value - b.value);
-    }
+    const landlordActualHand = tempHands[doudizhuLandlord];
+    landlordActualHand.push(...doudizhuLandlordPile);
+    // Sort all hands that just received landlord cards or will be used by AI
+    doudizhuPlayerHand.sort((a, b) => a.value - b.value);
+    doudizhuOpponent1Hand.sort((a, b) => a.value - b.value);
+    doudizhuOpponent2Hand.sort((a, b) => a.value - b.value);
+
     doudizhuLandlordPile = []; // Clear the landlord pile
 
-    // Map the global doudizhuCurrentTurn (0, 1, 2) to the actual player IDs
-    // and back again for decision making.
-    // For now, we assume doudizhuCurrentTurn (0,1,2) maps to Player (0), Opponent1 (1), Opponent2 (2)
-    // based on their position in the shuffled `playerOrder`.
-
-    // Set initial turn to the actual landlord's index in the `playerOrder` array
-    doudizhuCurrentTurn = doudizhuLandlord;
+    // Set initial turn to the landlord (index in playerOrder)
+    doudizhuCurrentTurn = initialLandlordIndex;
 
 
-    // Hide bidding buttons (already hidden by showScreen for a playing state)
+    // Hide bidding buttons (they are already hidden by showScreen for a playing state)
     if (doudizhuBiddingButtonsDiv) doudizhuBiddingButtonsDiv.style.display = 'none';
-    // Show play/pass buttons (will be hidden by updateDoudizhuUI for AI turns)
+    // Show play/pass buttons (will be hidden by updateDoudizhuUI for AI turns if not this client's turn)
     if (doudizhuPlayButton) doudizhuPlayButton.style.display = 'inline-block';
     if (doudizhuPassButton) doudizhuPassButton.style.display = 'inline-block';
 
@@ -2441,7 +2445,7 @@ function startDoudizhuGameInstance(playerOrder, initialLandlordIndex) {
 
     // Check whose turn it is globally and initiate the play
     if (playerOrder[doudizhuCurrentTurn] === myPlayerId) {
-        // It's this client's turn (player 0)
+        // It's this client's turn
         if (doudizhuPlayButton) doudizhuPlayButton.disabled = false;
         if (doudizhuPassButton) doudizhuPassButton.disabled = false;
         if (doudizhuResultDiv) doudizhuResultDiv.innerText = 'It\'s your turn to play!';
