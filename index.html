@@ -15,6 +15,7 @@
     <button id="play-blackjack-button" onclick="startBlackjack()">Play Blackjack</button>
     <button id="view-deck-button" onclick="showDeckViewer()">View Deck</button>
     <button id="play-doudizhu-button" onclick="startDoudizhu()">Play Doudizhu</button>
+    <button id="play-doudizhu-multiplayer-button" onclick="showDoudizhuMultiplayer()">Doudizhu Multiplayer</button>
   </div>
 
   <div id="game-screen" style="display: none;">
@@ -74,5 +75,35 @@
     <div id="doudizhu-result"></div>
     <button id="doudizhu-back-button" onclick="returnToMenu()">Back to Menu</button>
   </div>
+
+  <div id="doudizhu-multiplayer-screen" style="display: none;">
+    <h2 id="multiplayer-game-title">Doudizhu Multiplayer Lobby</h2>
+    <div id="multiplayer-lobby-area">
+      <div id="lobby-controls" class="flex flex-col items-center justify-center p-4 space-y-4">
+        <button id="create-lobby-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+          Create Game Lobby
+        </button>
+        <div class="flex flex-col items-center space-y-2">
+          <input type="text" id="lobby-code-input" placeholder="Enter Join Code" class="p-2 border border-gray-300 rounded-md text-center text-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <button id="join-lobby-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+            Join Game Lobby
+          </button>
+        </div>
+      </div>
+
+      <div id="lobby-view" class="flex flex-col items-center justify-center p-4 space-y-4" style="display: none;">
+        <h3 class="text-xl font-semibold">Lobby Participants:</h3>
+        <ul id="lobby-player-list" class="list-disc list-inside text-lg text-gray-700">
+          <!-- Player list will be rendered here by JavaScript -->
+        </ul>
+        <button id="start-game-button" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105" style="display: none;">
+          Start Game (Host Only)
+        </button>
+      </div>
+      <p id="lobby-status-message" class="text-center text-red-600 font-medium mt-4"></p>
+    </div>
+    <button id="multiplayer-back-button" class="mt-8 bg-gray-400 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105" onclick="returnToMenu()">Back to Menu</button>
+  </div>
+
 </body>
 </html>
