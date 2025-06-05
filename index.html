@@ -11,10 +11,11 @@
   <h1>Card Game Hub</h1>
 
   <div id="menu-screen">
-    <button id="play-war-button" onclick="startWar()">Play War</button>
-    <button id="play-blackjack-button" onclick="startBlackjack()">Play Blackjack</button>
-    <button id="view-deck-button" onclick="showDeckViewer()">View Deck</button>
-    <button id="play-doudizhu-button" onclick="startDoudizhu()">Play Doudizhu</button>
+    <button onclick="startWar()">Play War</button>
+    <button onclick="startBlackjack()">Play Blackjack</button>
+    <button onclick="showDeckViewer()">View Deck</button>
+    <button onclick="startDoudizhu()">Play Doudizhu (Single Player)</button>
+    <button onclick="showMultiplayerLobby()">Play Doudizhu (Multiplayer)</button>
   </div>
 
   <div id="game-screen" style="display: none;">
@@ -49,8 +50,7 @@
       <div id="doudizhu-center-area">
         <div class="doudizhu-hand-label" id="doudizhu-center-label">Played Cards</div>
         <div id="doudizhu-played-cards" class="doudizhu-hand played-cards-hand"></div>
-        <div id="doudizhu-current-pattern" style="display: none;">Current Pattern: <span
-            id="doudizhu-pattern-text">None</span></div>
+        <div id="doudizhu-current-pattern" style="display: none;">Current Pattern: <span id="doudizhu-pattern-text">None</span></div>
       </div>
 
       <div class="doudizhu-opponent-area doudizhu-opponent-right">
@@ -73,6 +73,35 @@
     </div>
     <div id="doudizhu-result"></div>
     <button id="doudizhu-back-button" onclick="returnToMenu()">Back to Menu</button>
+  </div>
+
+  <div id="multiplayer-lobby-screen" style="display: none;">
+    <h2>Doudizhu Multiplayer Lobby</h2>
+    <div id="lobby-creation-area">
+      <h3>Create New Lobby</h3>
+      <input type="text" id="player-name-input" placeholder="Enter your name" />
+      <button onclick="createLobby()">Create Lobby</button>
+      <div id="lobby-code-display" style="margin-top: 10px; font-weight: bold;"></div>
+    </div>
+
+    <div id="lobby-join-area" style="margin-top: 20px;">
+      <h3>Join Existing Lobby</h3>
+      <input type="text" id="join-code-input" placeholder="Enter lobby code" />
+      <input type="text" id="join-player-name-input" placeholder="Enter your name" />
+      <button onclick="joinLobby()">Join Lobby</button>
+    </div>
+
+    <div id="lobby-room-area" style="display: none; margin-top: 30px;">
+      <h3>Lobby: <span id="current-lobby-code"></span></h3>
+      <div id="lobby-players-list">
+        <h4>Players:</h4>
+        <ul id="players-list"></ul>
+      </div>
+      <button id="start-multiplayer-doudizhu-button" style="display: none;" onclick="startMultiplayerDoudizhu()">Start Game</button>
+      <button onclick="leaveLobby()">Leave Lobby</button>
+    </div>
+    <div id="multiplayer-lobby-result" class="result"></div>
+    <button id="lobby-back-button" onclick="returnToMenu()">Back to Menu</button>
   </div>
 </body>
 </html>

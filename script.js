@@ -35,47 +35,54 @@ class Deck {
       includeJokers: false, // For Deck Viewer: whether to include jokers
       gameType: 'war'       // 'war', 'blackjack', 'viewer', 'doudizhu' - influences card values
     };
-    // Merge defaults with provided options and store as a property for access in methods
-    this.settings = { ...defaultOptions, ...options };
-    this.gameType = this.settings.gameType; // Store gameType directly for easier access in sort()
+    const settings = { ...defaultOptions, ...options }; // Merge options
 
     this.cards = [];
-    const suits = ['♠', '♥', '♦', '♣'];
-    const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+    this.suits = ['♠', '♥', '♦', '♣'];
+    // Ranks from 3 (smallest in Doudizhu) up to 2, then A
+    // Doudizhu values: 3=3, 4=4, ..., 10=10, J=11, Q=12, K=13, A=14, 2=15, Small Joker=16, Big Joker=17
+    // Other games (War/Blackjack): A=1, J=11, Q=12, K=13, 2=2 (or Blackjack specific)
+    this.ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
 
-    let values;
-    if (this.gameType === 'blackjack') {
-      // Blackjack specific values: J,Q,K are 10; Ace is 11 (to be adjusted later if hand > 21)
-      values = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11];
-    } else if (this.gameType === 'doudizhu') {
-      // Doudizhu values: 3 smallest, 2 largest, then A, K, Q, J, 10...4. Jokers are highest.
-      // Here, we assign values for basic sorting: 3=3, 4=4, ..., 10=10, J=11, Q=12, K=13, A=14, 2=15
-      values = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]; // 3 to A, then 2
-    } else { // 'war' or 'viewer' - standard card values for comparison, Ace can be 1
-      values = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 1]; // Ace as 1 for sorting/comparison in War/Viewer
-    }
+    for (let i = 0; i < settings.numDecks; i++) {
+      this.suits.forEach(suit => {
+        this.ranks.forEach(rank => {
+          let value;
+          if (settings.gameType === 'doudizhu') {
+            switch (rank) {
+              case 'J': value = 11; break;
+              case 'Q': value = 12; break;
+              case 'K': value = 13; break;
+              case 'A': value = 14; break;
+              case '2': value = 15; break;
+              default: value = parseInt(rank);
+            }
+          } else if (settings.gameType === 'blackjack') {
+            switch (rank) {
+              case 'A': value = 11; break; // Ace can be 1 or 11
+              case 'J': case 'Q': case 'K': value = 10; break;
+              default: value = parseInt(rank);
+            }
+          } else { // 'war' or 'viewer'
+            switch (rank) {
+              case 'A': value = 14; break; // Ace high in War
+              case 'K': value = 13; break;
+              case 'Q': value = 12; break;
+              case 'J': value = 11; break;
+              default: value = parseInt(rank);
+            }
+          }
+          this.cards.push(new Card(suit, rank, value));
+        });
+      });
 
-    // Create standard cards based on numDecks
-    for (let i = 0; i < this.settings.numDecks; i++) {
-      for (let suit of suits) {
-        for (let j = 0; j < ranks.length; j++) {
-          this.cards.push(new Card(suit, ranks[j], values[j]));
-        }
+      if (settings.includeJokers || settings.gameType === 'doudizhu') {
+        this.cards.push(new Card(null, 'JOKER', 16, 'black')); // Small Joker
+        this.cards.push(new Card(null, 'JOKER', 17, 'red'));   // Big Joker
       }
     }
 
-    // Optionally include two jokers if specified (primarily for Deck Viewer and Doudizhu)
-    if (this.settings.includeJokers) {
-      // For Doudizhu, jokers have distinct high values
-      if (this.gameType === 'doudizhu') {
-        this.cards.push(new Card(null, 'JOKER', 16, 'black')); // Black Joker (Small Joker)
-        this.cards.push(new Card(null, 'JOKER', 17, 'red'));   // Red Joker (Big Joker)
-      } else {
-        // For viewer, jokers have null value for general display
-        this.cards.push(new Card(null, 'JOKER', null, 'black'));
-        this.cards.push(new Card(null, 'JOKER', null, 'red'));
-      }
-    }
+    this.shuffle();
   }
 
   shuffle() {
@@ -85,2007 +92,1492 @@ class Deck {
     }
   }
 
-  deal() {
-    // Deal one card from the top of the deck
-    if (this.cards.length === 0) {
-      console.warn("Deck is empty!");
-      return null;
-    }
-    return this.cards.shift();
-  }
-
-  dealHalf() {
-    // Ensure the deck has an odd number of cards for a fair deal
-    if (this.cards.length % 2 !== 0) {
-      console.warn("Deck has an odd number of cards. Dealing might be uneven.");
-    }
-    const half = Math.ceil(this.cards.length / 2);
-    // Use splice to modify the original array and return the first half
-    const playerCards = this.cards.splice(0, half);
-    const enemyCards = this.cards; // The rest goes to the enemy
-    this.cards = []; // The deck is now empty after dealing out all cards
-    return [playerCards, enemyCards];
-  }
-
-  sort() {
-    this.cards.sort((a, b) => {
-      // Specific sorting for Doudizhu: 3 smallest, 2 largest, then A, K, Q, J, 10...4. Jokers are highest.
-      // Values are already assigned in constructor (3-15 for 3-2, 16 for Black Joker, 17 for Red Joker)
-      if (this.gameType === 'doudizhu') {
-        // Sort by value first
-        if (a.value !== b.value) {
-          return a.value - b.value;
-        }
-        // Then by suit (standard Doudizhu suit order: clubs < diamonds < hearts < spades)
-        const suitOrder = { '♣': 0, '♦': 1, '♥': 2, '♠': 3 };
-        return suitOrder[a.suit] - suitOrder[b.suit];
-      }
-
-      // Default sorting for other games (War, Viewer)
-      // Place jokers at the end, Black Joker before Red Joker if both present
-      if (a.rank === 'JOKER' && b.rank !== 'JOKER') return 1;
-      if (b.rank === 'JOKER' && a.rank !== 'JOKER') return -1;
-      if (a.rank === 'JOKER' && b.rank === 'JOKER') {
-        if (a.color === 'black' && b.color === 'red') return -1;
-        if (a.color === 'red' && b.color === 'black') return 1;
-        return 0; // Same type of joker
-      }
-
-      const suitOrder = { '♠': 0, '♥': 1, '♦': 2, '♣': 3 };
-      // Ensure suits are valid before comparing
-      if (a.suit && b.suit && a.suit !== b.suit) {
-        return suitOrder[a.suit] - suitOrder[b.suit];
-      }
-      return a.value - b.value;
-    });
+  deal(numCards) {
+    return this.cards.splice(0, numCards);
   }
 }
 
-// Map suit symbols to name for filename construction
-const suitMap = {
-  '♠': 'spades',
-  '♥': 'hearts',
-  '♦': 'diamonds',
-  '♣': 'clubs'
-};
-
-// Generate filename for each card, using the required format
-function getCardFileName(card) {
-  if (!card) return 'card_back.svg'; // Default to card back if no card is provided
-  if (card.rank === 'JOKER') {
-    return `${card.color.toLowerCase()}_joker.svg`;
-  } else {
-    const rankPart = card.rank;
-    const suitPart = suitMap[card.suit];
-    return `${rankPart}_of_${suitPart}.svg`;
-  }
-}
-
-// --- Global Variables (for all games) ---
-let playerDeck = []; // Used for War
-let enemyDeck = [];  // Used for War
-let currentDeck = null; // Used by Deck Viewer
-let focusedCardIndex = -1; // Used by Deck Viewer
-
-// --- Blackjack specific variables ---
-let blackjackDeck = null;
+// --- Global Game State Variables ---
+let currentDeck;
 let playerHand = [];
-let dealerHand = [];
-let gameStatus = 'playing'; // 'playing', 'player_blackjack', 'dealer_blackjack', 'player_bust', 'dealer_bust', 'push', 'player_win', 'dealer_win', 'player_5_card_charlie', 'dealer_blackjack_beats_charlie'
+let enemyHand = [];
+let gameMode = ''; // 'war', 'blackjack', 'deckViewer', 'doudizhu', 'multiplayerLobby', 'multiplayerDoudizhu'
 
-// NEW GLOBAL VARIABLES FOR WIN COUNTERS
-let playerWins = 0;
-let dealerWins = 0;
-
-// --- Get references to DOM elements once (re-using for all games where applicable) ---
-// Elements for War/Blackjack/Deck Viewer
+// DOM Elements
+const menuScreen = document.getElementById('menu-screen');
 const gameScreen = document.getElementById('game-screen');
-const gameTitle = document.getElementById('game-title');
-const backButton = document.getElementById('back-button'); // This is the back button on game-screen
-const playerHandDiv = document.getElementById('player-hand');
-const enemyHandDiv = document.getElementById('enemy-hand'); // Re-used for dealer hand
-const playerCardCountSpan = document.getElementById('player-card-count'); // Re-used for War, adapted for Blackjack scores
-const enemyCardCountSpan = document.getElementById('enemy-card-count');   // Re-used for War, adapted for Blackjack scores
-const playerInfoDiv = document.getElementById('player-player-info');     // Re-used for War, adapted for Blackjack scores
-const enemyInfoDiv = document.getElementById('enemy-player-info');       // Re-used for War, adapted for Blackjack scores
-const resultDiv = document.getElementById('result');
-const playTurnButton = document.getElementById('play-turn'); // Re-purposed for "Play Again" in Blackjack
-
-// Blackjack specific buttons (declared globally to be accessible)
-let hitButton;
-let standButton;
-
-// --- Doudizhu specific variables and DOM references (ISOLATED) ---
-let doudizhuDeck = null;
-let doudizhuPlayerHand = [];
-let doudizhuOpponent1Hand = [];
-let doudizhuOpponent2Hand = [];
-let doudizhuLandlordPile = []; // Stores the 3 landlord cards
-let doudizhuPlayedCards = [];
-let doudizhuGameState = 'bidding'; // 'bidding', 'playing', 'game_over'
-let doudizhuLandlord = null; // Stores the index of the landlord (0: player, 1: opp1, 2: opp2)
-let doudizhuBids = []; // Array to store bids during bidding phase
-let doudizhuCurrentBidderIndex = 0; // Index of the player currently bidding
-let doudizhuLastPlayedPattern = null; // Stores the last played pattern (e.g., {type: 'Pair', value: 10, length: 1})
-let doudizhuLastPlayedCards = []; // Stores the actual cards of the last played pattern
-let doudizhuCurrentTurn = 0; // 0: player, 1: opp1, 2: opp2
-
-// Variables for Doudizhu turn management
-let doudizhuConsecutivePasses = 0; // Counts passes since last valid play
-let doudizhuPlayerWhoLastPlayed = null; // Stores index of player who last played (0: player, 1: opp1, 2: opp2)
-
-
 const doudizhuGameScreen = document.getElementById('doudizhu-game-screen');
-const doudizhuGameTitle = document.getElementById('doudizhu-game-title');
+const multiplayerLobbyScreen = document.getElementById('multiplayer-lobby-screen');
+
+const gameTitle = document.getElementById('game-title');
+const enemyCardCount = document.getElementById('enemy-card-count');
+const playerCardCount = document.getElementById('player-card-count');
+const enemyHandDiv = document.getElementById('enemy-hand');
+const playerHandDiv = document.getElementById('player-hand');
+const playTurnButton = document.getElementById('play-turn');
+const resultDiv = document.getElementById('result');
+const backButton = document.getElementById('back-button');
+
+// Doudizhu specific DOM elements
 const doudizhuPlayerHandDiv = document.getElementById('doudizhu-player-hand');
 const doudizhuOpponent1HandDiv = document.getElementById('doudizhu-opponent1-hand');
 const doudizhuOpponent2HandDiv = document.getElementById('doudizhu-opponent2-hand');
 const doudizhuPlayedCardsDiv = document.getElementById('doudizhu-played-cards');
-let doudizhuPlayButton;
-let doudizhuPassButton;
+const doudizhuPlayButton = document.getElementById('doudizhu-play-button');
+const doudizhuPassButton = document.getElementById('doudizhu-pass-button');
+const doudizhuBiddingButtons = document.getElementById('doudizhu-bidding-buttons');
+const doudizhuCallLandlordButton = document.getElementById('doudizhu-call-landlord-button');
+const doudizhuDontCallButton = document.getElementById('doudizhu-dont-call-button');
 const doudizhuResultDiv = document.getElementById('doudizhu-result');
-const doudizhuBackButton = document.getElementById('doudizhu-back-button'); // This is the back button on doudizhu-game-screen
-const doudizhuCenterLabel = document.getElementById('doudizhu-center-label');
 const doudizhuCurrentPatternDiv = document.getElementById('doudizhu-current-pattern');
 const doudizhuPatternTextSpan = document.getElementById('doudizhu-pattern-text');
 
-// Doudizhu Bidding Buttons
-let doudizhuBiddingButtonsDiv;
-let doudizhuCallLandlordButton;
-let doudizhuDontCallButton;
 
-// Doudizhu Play Again Button (new)
-let doudizhuPlayAgainButton;
+// Doudizhu Game State (can be used for both single and multiplayer via server)
+let doudizhuHands = [[], [], []]; // Player, Opponent1, Opponent2
+let doudizhuLandlord = -1; // 0 for player, 1 for opponent1, 2 for opponent2
+let doudizhuCurrentTurn = -1; // 0 for player, 1 for opponent1, 2 for opponent2
+let doudizhuLastPlayedPattern = null; // Stores { type: 'single', value: 10, cards: [...] }
+let doudizhuLastPlayedCards = []; // Actual Card objects of the last played pattern
+let doudizhuSelectedCards = [];
+let doudizhuBiddingState = {
+  playerBid: false,
+  opponent1Bid: false,
+  opponent2Bid: false,
+  bidsCount: 0
+};
+let doudizhuPasses = 0; // Track consecutive passes to clear played cards
 
+// Multiplayer Doudizhu specific state for client-side
+let currentLobby = null; // { code: 'ABCDEF', players: [{ id: 'uuid', name: 'Player1', isHost: true, handSize: 17 }], hostId: 'uuid', gameStarted: false, gameState: null }
+let myPlayerId = null; // Unique ID for this player in the current session
+let myPlayerName = ''; // Store the name entered by the user
+let myPlayerIndex = -1; // Index in the doudizhuHands array (0, 1, or 2) for this player
 
-// --- Helper Functions (general purpose) ---
+// DOM elements for Multiplayer Lobby
+const playerNameInput = document.getElementById('player-name-input');
+const lobbyCodeDisplay = document.getElementById('lobby-code-display');
+const joinCodeInput = document.getElementById('join-code-input');
+const joinPlayerNameInput = document.getElementById('join-player-name-input');
+const lobbyRoomArea = document.getElementById('lobby-room-area');
+const currentLobbyCodeSpan = document.getElementById('current-lobby-code');
+const playersList = document.getElementById('players-list');
+const startMultiplayerDoudizhuButton = document.getElementById('start-multiplayer-doudizhu-button');
+const multiplayerLobbyResultDiv = document.getElementById('multiplayer-lobby-result');
 
-// Helper function to update the back button's text and action
-function updateBackButton(text, handler) {
-  // This function now specifically targets the back button on the *currently active* game screen.
-  // We need to ensure the correct back button is updated based on the active screen.
-  // The HTML has two back buttons: one for game-screen, one for doudizhu-game-screen.
-  // We'll update the one that's currently visible.
-  if (gameScreen.style.display === 'block' && backButton) {
-    backButton.innerText = text;
-    backButton.onclick = handler;
-  } else if (doudizhuGameScreen.style.display === 'block' && doudizhuBackButton) {
-    doudizhuBackButton.innerText = text;
-    doudizhuBackButton.onclick = handler;
+// WebSocket connection
+const WEBSOCKET_SERVER_URL = 'ws://localhost:8080'; // YOU MUST CHANGE THIS TO YOUR SERVER URL
+let websocket;
+
+function connectWebSocket() {
+  if (websocket && websocket.readyState === WebSocket.OPEN) {
+    console.log('WebSocket already connected.');
+    return;
+  }
+
+  websocket = new WebSocket(WEBSOCKET_SERVER_URL);
+
+  websocket.onopen = () => {
+    console.log('WebSocket connected.');
+    multiplayerLobbyResultDiv.innerText = 'Connected to game server.';
+    // If we have a stored player ID, send it to the server to re-identify
+    if (myPlayerId) {
+      websocket.send(JSON.stringify({ type: 'reconnect', playerId: myPlayerId }));
+    }
+  };
+
+  websocket.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+    console.log('Received message:', message);
+
+    switch (message.type) {
+      case 'lobbyCreated':
+        currentLobby = message.lobby;
+        myPlayerId = message.myPlayerId;
+        multiplayerLobbyResultDiv.innerText = `Lobby created! Share code: ${message.lobby.code}`;
+        updateLobbyUI();
+        break;
+      case 'lobbyUpdate':
+        currentLobby = message.lobby;
+        updateLobbyUI();
+        multiplayerLobbyResultDiv.innerText = `Lobby ${currentLobby.code} updated.`;
+        break;
+      case 'gameStarted':
+        // The server provides the initial game state, including player hands.
+        currentLobby.gameStarted = true;
+        // Map server's player IDs to client's 0, 1, 2 indices for doudizhuHands
+        const playerOrder = message.playerOrder; // Array of { id, name } from server
+        myPlayerIndex = playerOrder.findIndex(p => p.id === myPlayerId);
+
+        doudizhuHands[0] = message.initialHands[myPlayerIndex].map(cardData => new Card(cardData.suit, cardData.rank, cardData.value, cardData.color));
+        doudizhuHands[0].sort((a, b) => a.value - b.value); // Sort player's hand locally
+        // Opponent hands will be represented by their count from the server's message
+        // For simplicity, we'll assume opponent 1 is the next player in order, and opponent 2 is the one after that.
+        doudizhuHands[1] = Array(message.initialHands[(myPlayerIndex + 1) % 3].length).fill({}); // Dummy cards for opponent 1
+        doudizhuHands[2] = Array(message.initialHands[(myPlayerIndex + 2) % 3].length).fill({}); // Dummy cards for opponent 2
+
+        doudizhuLandlord = message.landlord;
+        doudizhuCurrentTurn = message.currentTurn;
+        doudizhuLastPlayedPattern = message.lastPlayedPattern;
+        doudizhuLastPlayedCards = message.lastPlayedCards ? message.lastPlayedCards.map(cardData => new Card(cardData.suit, cardData.rank, cardData.value, cardData.color)) : [];
+
+        // Set bidding buttons based on whose turn it is
+        if (doudizhuCurrentTurn === myPlayerIndex) {
+            doudizhuBiddingButtons.style.display = 'flex';
+            doudizhuPlayButton.style.display = 'none';
+            doudizhuPassButton.style.display = 'none';
+            doudizhuResultDiv.innerText = `It's your turn to bid! Landlord's cards: ${message.landlordCards.map(c => c.rank).join(', ')}.`;
+        } else {
+            doudizhuBiddingButtons.style.display = 'none';
+            doudizhuPlayButton.style.display = 'none';
+            doudizhuPassButton.style.display = 'none';
+            doudizhuResultDiv.innerText = `Waiting for Player ${doudizhuCurrentTurn + 1} to bid. Landlord's cards: ${message.landlordCards.map(c => c.rank).join(', ')}.`;
+        }
+
+        showScreen('doudizhu-game-screen');
+        updateDoudizhuUI(); // Initial UI update after game starts
+        break;
+      case 'gameStateUpdate':
+        // Update game state from server
+        // This will be more complex to map hands to correct opponents based on myPlayerIndex
+        // For simplicity, we'll assume the server sends enough info.
+        const serverHands = message.gameState.hands; // Array of hands, index corresponds to playerOrder
+        const playerOrderInGame = message.gameState.playerOrder; // Array mapping index to actual player IDs
+
+        // Find my index in the server's player order
+        const myActualIndexInServerOrder = playerOrderInGame.findIndex(pId => pId === myPlayerId);
+
+        // Update my hand
+        doudizhuHands[0] = serverHands[myActualIndexInServerOrder].map(cardData => new Card(cardData.suit, cardData.rank, cardData.value, cardData.color));
+        doudizhuHands[0].sort((a, b) => a.value - b.value);
+
+        // Update opponent hands based on their *relative* position to me
+        // Opponent 1: (myActualIndexInServerOrder + 1) % 3
+        // Opponent 2: (myActualIndexInServerOrder + 2) % 3
+        doudizhuHands[1] = Array(serverHands[(myActualIndexInServerOrder + 1) % 3].length).fill({});
+        doudizhuHands[2] = Array(serverHands[(myActualIndexInServerOrder + 2) % 3].length).fill({});
+
+        doudizhuLandlord = message.gameState.landlord;
+        doudizhuCurrentTurn = message.gameState.currentTurn; // This will be the index from 0-2 (server's perspective)
+        doudizhuLastPlayedPattern = message.gameState.lastPlayedPattern;
+        doudizhuLastPlayedCards = message.gameState.lastPlayedCards ? message.gameState.lastPlayedCards.map(cardData => new Card(cardData.suit, cardData.rank, cardData.value, cardData.color)) : [];
+        doudizhuPasses = message.gameState.passes;
+
+        // Determine who's turn it is relative to 'me' for UI
+        if (doudizhuCurrentTurn === myActualIndexInServerOrder) {
+            doudizhuResultDiv.innerText = 'It\'s your turn!';
+            doudizhuPlayButton.style.display = 'inline-block';
+            doudizhuPassButton.style.display = 'inline-block';
+        } else {
+            const currentTurnPlayer = currentLobby.players.find(p => p.id === playerOrderInGame[doudizhuCurrentTurn]);
+            doudizhuResultDiv.innerText = `Waiting for ${currentTurnPlayer ? currentTurnPlayer.name : 'Opponent'}'s turn.`;
+            doudizhuPlayButton.style.display = 'none';
+            doudizhuPassButton.style.display = 'none';
+        }
+        doudizhuBiddingButtons.style.display = 'none'; // Ensure bidding buttons are hidden during play
+        updateDoudizhuUI();
+        break;
+      case 'biddingUpdate':
+        // Update bidding state based on server
+        doudizhuCurrentTurn = message.currentTurn; // Server tells whose turn it is for bidding
+        doudizhuLandlord = message.landlord; // -1 if not decided yet
+        multiplayerLobbyResultDiv.innerText = message.message; // Display bidding message
+        doudizhuResultDiv.innerText = message.message;
+
+        if (doudizhuLandlord !== -1) { // Bidding has ended
+            // If I am the landlord, server will send a separate gameStarted message later with the final hand
+            // For now, just show the landlord decision.
+            doudizhuBiddingButtons.style.display = 'none';
+            doudizhuPlayButton.style.display = 'none';
+            doudizhuPassButton.style.display = 'none';
+            // The game will start fully when the server sends the 'gameStarted' message.
+        } else if (doudizhuCurrentTurn === myPlayerIndex) {
+            doudizhuBiddingButtons.style.display = 'flex';
+            doudizhuPlayButton.style.display = 'none';
+            doudizhuPassButton.style.display = 'none';
+        } else {
+            doudizhuBiddingButtons.style.display = 'none';
+            doudizhuPlayButton.style.display = 'none';
+            doudizhuPassButton.style.display = 'none';
+        }
+        updateDoudizhuUI(); // Reflect bidding state in UI
+        break;
+      case 'gameEnded':
+        endDoudizhuGame(message.winnerIndex); // Server tells who won
+        break;
+      case 'error':
+        multiplayerLobbyResultDiv.innerText = `Error: ${message.message}`;
+        doudizhuResultDiv.innerText = `Error: ${message.message}`;
+        break;
+    }
+  };
+
+  websocket.onclose = () => {
+    console.log('WebSocket disconnected.');
+    multiplayerLobbyResultDiv.innerText = 'Disconnected from game server. Please reconnect.';
+    // Clear current lobby state on disconnect, as it's no longer valid.
+    currentLobby = null;
+    updateLobbyUI();
+  };
+
+  websocket.onerror = (error) => {
+    console.error('WebSocket error:', error);
+    multiplayerLobbyResultDiv.innerText = 'WebSocket error. Check server status.';
+  };
+}
+
+// Function to send messages via WebSocket
+function sendWebSocketMessage(type, payload) {
+  if (websocket && websocket.readyState === WebSocket.OPEN) {
+    websocket.send(JSON.stringify({ type, playerId: myPlayerId, ...payload }));
+  } else {
+    console.error('WebSocket not connected. Cannot send message:', type, payload);
+    multiplayerLobbyResultDiv.innerText = 'Not connected to server. Please try again.';
   }
 }
 
-// Helper to update card counts on screen (primarily for War)
-function updateCardCounts() {
-  if (playerCardCountSpan) playerCardCountSpan.innerText = playerDeck.length;
-  if (enemyCardCountSpan) enemyCardCountSpan.innerText = enemyDeck.length;
+// --- Utility Functions ---
+
+// Function to create a card element for display
+function createCardElement(card) {
+  const cardDiv = document.createElement('div');
+  cardDiv.classList.add('card');
+  if (card.suit === '♥' || card.suit === '♦' || card.color === 'red') {
+    cardDiv.classList.add('red');
+  } else {
+    cardDiv.classList.add('black');
+  }
+
+  const rankTop = document.createElement('div');
+  rankTop.classList.add('card-rank', 'top');
+  rankTop.innerText = card.rank;
+
+  const suitCenter = document.createElement('div');
+  suitCenter.classList.add('card-suit', 'center');
+  suitCenter.innerHTML = card.suit || ''; // Jokers don't have a suit symbol
+
+  const rankBottom = document.createElement('div');
+  rankBottom.classList.add('card-rank', 'bottom');
+  rankBottom.innerText = card.rank;
+
+  // Add suit icon for jokers
+  if (card.rank === 'JOKER') {
+    suitCenter.innerHTML = card.color === 'red' ? '🃏' : '🤹'; // Red/Black Joker icons
+  }
+
+  cardDiv.appendChild(rankTop);
+  cardDiv.appendChild(suitCenter);
+  cardDiv.appendChild(rankBottom);
+
+  return cardDiv;
 }
 
-// Helper to toggle visibility of player info divs (primarily for War/Blackjack)
-function togglePlayerInfo(show) {
-  if (playerInfoDiv) playerInfoDiv.style.display = show ? 'flex' : 'none';
-  if (enemyInfoDiv) enemyInfoDiv.style.display = show ? 'flex' : 'none';
-}
-
-
-// Renders a hand of cards by creating <img> elements for each card
-// Added a `hideHoleCard` parameter for Blackjack dealer's first turn
-function renderHand(containerId, cards, clickable = true, hideHoleCard = false) {
-  const container = document.getElementById(containerId);
-  container.innerHTML = '';
-  if (!cards || cards.length === 0) return;
-
-  cards.forEach((card, index) => {
-    const img = document.createElement('img');
-    img.className = 'card';
-    img.style.zIndex = index; // For overlapping effect
-
-    // If it's the dealer's hand and hideHoleCard is true and it's the second card
-    if (containerId === 'enemy-hand' && hideHoleCard && index === 1) {
-      img.src = `assets/cards/card_back.svg`; // Show card back
-      img.alt = `Card Back`;
-    } else {
-      img.src = `assets/cards/${getCardFileName(card)}`;
-      img.alt = card.toString();
-    }
-
-    if (clickable) {
-      img.addEventListener('click', () => {
-        focusCard(card, index);
-      });
-    }
-
-    container.appendChild(img);
+// Function to render hands
+function renderHand(hand, handElement) {
+  handElement.innerHTML = ''; // Clear existing cards
+  hand.forEach(card => {
+    handElement.appendChild(createCardElement(card));
   });
 }
 
-// Renders a single, magnified card for the Deck Viewer's focus mode
-function renderFocusedCard(card) {
-  // This function is specifically for the Deck Viewer, which uses playerHandDiv
-  playerHandDiv.innerHTML = ''; // Clear existing hand
+// Function to display appropriate game screen
+function showScreen(screenId) {
+  menuScreen.style.display = 'none';
+  gameScreen.style.display = 'none';
+  doudizhuGameScreen.style.display = 'none';
+  multiplayerLobbyScreen.style.display = 'none';
 
-  const focusedCardDisplay = document.createElement('div');
-  focusedCardDisplay.className = 'focused-card-display'; // Apply specific styling
-
-  const img = document.createElement('img');
-  img.className = 'card focused'; // Add 'focused' class for CSS styling
-  img.src = `assets/cards/${getCardFileName(card)}`;
-  img.alt = card.toString();
-  // Clicking focused card now returns to the *current* full deck view
-  img.addEventListener('click', returnToFullDeckView);
-
-  focusedCardDisplay.appendChild(img);
-  playerHandDiv.appendChild(focusedCardDisplay);
-
-  // Update result div with focused card info
-  resultDiv.innerText = `Focused: ${card.toString()}`;
+  document.getElementById(screenId).style.display = 'flex';
 }
 
+// --- Game Logic Functions ---
 
-// --- Blackjack specific functions ---
-
-// Calculates the value of a Blackjack hand
-function calculateHandValue(hand) {
-  let value = 0;
-  let numAces = 0;
-
-  for (let card of hand) {
-    value += card.value;
-    if (card.rank === 'A') {
-      numAces++;
-    }
-  }
-
-  // Adjust for Aces if hand is over 21
-  while (value > 21 && numAces > 0) {
-    value -= 10; // Change Ace value from 11 to 1
-    numAces--;
-  }
-  return value;
-}
-
-// Updates the display of hand values and game status, including win counters
-function updateBlackjackUI() {
-  const playerValue = calculateHandValue(playerHand);
-  const dealerValue = calculateHandValue(dealerHand); // Dealer's actual value, even with hole card
-
-  renderHand('player-hand', playerHand, false); // Player's cards are always visible
-  // For dealer, only show hole card if game is 'playing' (player's turn)
-  renderHand('enemy-hand', dealerHand, false, gameStatus === 'playing');
-
-  // Update player info divs to show current scores AND win counts
-  if (playerInfoDiv) {
-    playerInfoDiv.innerHTML = `
-            <span class="player-label">Your Hand:</span> <span class="card-count">${playerValue}</span><br>
-            <span class="wins-label">Wins:</span> <span class="wins-count">${playerWins}</span>
-        `;
-  }
-  if (enemyInfoDiv) {
-    enemyInfoDiv.innerHTML = `
-            <span class="player-label">Dealer's Hand:</span> <span class="card-count">${gameStatus === 'playing' ? '?' : dealerValue}</span><br>
-            <span class="wins-label">Wins:</span> <span class="wins-count">${dealerWins}</span>
-        `;
-  }
-
-  // Update resultDiv with current scores during the playing state
-  if (gameStatus === 'playing') {
-    resultDiv.innerText = `Player: ${playerValue} | Dealer: ? (Hit or Stand?)`;
-  }
-  // Other game status messages (win/loss/bust) are handled by endBlackjackGame, dealerPlays, etc.
-
-
-  // Show/hide specific buttons
-  if (gameStatus === 'playing') {
-    if (hitButton) hitButton.style.display = 'inline-block';
-    if (standButton) standButton.style.display = 'inline-block';
-    playTurnButton.style.display = 'none'; // Hide War's Play Turn button
-  } else {
-    if (hitButton) hitButton.style.display = 'none';
-    if (standButton) standButton.style.display = 'none';
-    // The playTurnButton will be set to "Play Again" in endBlackjackGame
-  }
-}
-
-// Player chooses to hit
-function hit() {
-  playerHand.push(blackjackDeck.deal());
-  const playerValue = calculateHandValue(playerHand);
-  updateBlackjackUI(); // This call now updates the resultDiv as well
-
-  if (playerValue > 21) {
-    gameStatus = 'player_bust';
-    endBlackjackGame();
-  }
-  // Check for 5 Card Charlie immediately after a hit, if not busted
-  else if (playerHand.length === 5) {
-    // Automatically stand if 5 cards are drawn and not busted
-    // resultDiv.innerText will be updated by endBlackjackGame
-    stand();
-  }
-}
-
-// Player chooses to stand
-function stand() {
-  gameStatus = 'dealer_turn';
-  // Hide Hit/Stand buttons immediately
-  if (hitButton) hitButton.style.display = 'none';
-  if (standButton) standButton.style.display = 'none';
-  dealerPlays();
-}
-
-// Dealer's turn logic
-function dealerPlays() {
-  // Reveal hole card
-  renderHand('enemy-hand', dealerHand, false, false); // Show both dealer cards
-  resultDiv.innerText = `Dealer's Turn... Dealer reveals hole card.`; // This specific message replaces the score display temporarily
-
-  let dealerValue = calculateHandValue(dealerHand);
-
-  // Dealer hits on 16 or less, stands on 17 or more
-  const dealerPlayInterval = setInterval(() => {
-    if (dealerValue < 17) {
-      dealerHand.push(blackjackDeck.deal());
-      dealerValue = calculateHandValue(dealerHand);
-      renderHand('enemy-hand', dealerHand, false, false); // Update dealer hand
-      resultDiv.innerText = `Dealer hits: ${dealerValue}`; // Update message during dealer hits
-      if (dealerValue > 21) {
-        gameStatus = 'dealer_bust';
-        clearInterval(dealerPlayInterval);
-        endBlackjackGame();
-        return;
-      }
-    } else {
-      clearInterval(dealerPlayInterval);
-      endBlackjackGame(); // Determine winner
-    }
-  }, 1000); // Wait 1 second between dealer hits for visual effect
-}
-
-// Determines the winner of the Blackjack game
-function endBlackjackGame() {
-  const playerValue = calculateHandValue(playerHand);
-  const dealerValue = calculateHandValue(dealerHand);
-
-  // Final reveal of dealer's hand
-  renderHand('enemy-hand', dealerHand, false, false);
-  // Update final scores in player info divs
-  if (playerInfoDiv) playerInfoDiv.innerHTML = `<span class="player-label">Your Hand:</span> <span class="card-count">${playerValue}</span><br><span class="wins-label">Wins:</span> <span class="wins-count">${playerWins}</span>`;
-  if (enemyInfoDiv) enemyInfoDiv.innerHTML = `<span class="player-label">Dealer's Hand:</span> <span class="card-count">${dealerValue}</span><br><span class="wins-label">Wins:</span> <span class="wins-count">${dealerWins}</span>`;
-
-
-  // --- Determine Winner with 5 Card Charlie Rule ---
-  if (gameStatus === 'player_bust') {
-    resultDiv.innerText = `You BUST with ${playerValue}! Dealer wins.`;
-    dealerWins++; // Increment dealer wins
-  } else if (gameStatus === 'dealer_bust') {
-    resultDiv.innerText = `Dealer BUSTS with ${dealerValue}! You win!`;
-    playerWins++; // Increment player wins
-  }
-  // Check for 5 Card Charlie: Player has 5 cards and is not busted
-  else if (playerHand.length === 5 && playerValue <= 21) {
-    // If player has 5-Card Charlie, they win UNLESS dealer has a natural Blackjack (2 cards, 21)
-    if (dealerValue === 21 && dealerHand.length === 2) {
-      gameStatus = 'dealer_blackjack_beats_charlie'; // Specific status for clarity
-      resultDiv.innerText = `Dealer has BLACKJACK! Dealer wins, even against your 5 Card Charlie!`;
-      dealerWins++; // Increment dealer wins
-    } else {
-      gameStatus = 'player_5_card_charlie';
-      resultDiv.innerText = `5 CARD CHARLIE! You win with ${playerValue} and 5 cards!`;
-      playerWins++; // Increment player wins
-    }
-  }
-  // Check for natural Blackjacks (2-card 21s)
-  else if (playerValue === 21 && playerHand.length === 2) {
-    if (dealerValue === 21 && dealerHand.length === 2) {
-      gameStatus = 'push';
-      resultDiv.innerText = `It's a PUSH (Tie) with two Blackjacks!`;
-      // No win increment for push
-    } else {
-      gameStatus = 'player_blackjack';
-      resultDiv.innerText = 'BLACKJACK! You win!';
-      playerWins++; // Increment player wins
-    }
-  } else if (dealerValue === 21 && dealerHand.length === 2) {
-    gameStatus = 'dealer_blackjack';
-    resultDiv.innerText = 'Dealer has BLACKJACK! Dealer wins.';
-    dealerWins++; // Increment dealer wins
-  }
-  // Standard score comparisons (if no busts, no charlie, no natural blackjacks)
-  else if (playerValue > dealerValue) {
-    gameStatus = 'player_win';
-    resultDiv.innerText = `You win with ${playerValue} vs Dealer's ${dealerValue}!`;
-    playerWins++; // Increment player wins
-  } else if (dealerValue > playerValue) {
-    gameStatus = 'dealer_win';
-    resultDiv.innerText = `Dealer wins with ${dealerValue} vs Your ${playerValue}.`;
-    dealerWins++; // Increment dealer wins
-  } else { // playerValue === dealerValue
-    gameStatus = 'push';
-    resultDiv.innerText = `It's a PUSH (Tie) with ${playerValue}!`;
-    // No win increment for push
-  }
-
-  // --- End Game UI Updates ---
-  playTurnButton.innerText = "Play Again";
-  playTurnButton.onclick = startBlackjack; // Clicking it will start a new game
-  playTurnButton.style.display = 'inline-block';
-
-  // Hide Hit/Stand buttons definitively
-  if (hitButton) hitButton.style.display = 'none';
-  if (standButton) standButton.style.display = 'none';
-}
-
-
-// --- Game Initialization Functions ---
-
-function startBlackjack() {
-  showScreen('game-screen', 'Blackjack'); // Use the generic game screen
-  resultDiv.innerText = 'Dealing...';
-
-  // Reset game state for a new hand, but keep win counters
-  playerHand = [];
-  dealerHand = [];
-  gameStatus = 'playing';
-  // Create a new Deck for Blackjack with 2 decks and specific values
-  blackjackDeck = new Deck({ numDecks: 2, gameType: 'blackjack' });
-  blackjackDeck.shuffle();
-
-  // Clear hands display
-  playerHandDiv.innerHTML = '';
-  enemyHandDiv.innerHTML = '';
-
-  // Deal initial cards
-  playerHand.push(blackjackDeck.deal());
-  dealerHand.push(blackjackDeck.deal()); // Dealer's face-up card
-  playerHand.push(blackjackDeck.deal());
-  dealerHand.push(blackjackDeck.deal()); // Dealer's face-down (hole) card
-
-  // Show player info divs (now for scores)
-  togglePlayerInfo(true);
-
-  // Set justify-content for Blackjack hands to center
-  playerHandDiv.style.justifyContent = 'center';
-  enemyHandDiv.style.justifyContent = 'center';
-
-  // Create Hit/Stand buttons (if they don't exist)
-  // Ensure they are appended to 'game-area' or a suitable container
-  if (!document.getElementById('hit-button')) {
-    hitButton = document.createElement('button');
-    hitButton.id = 'hit-button';
-    hitButton.innerText = 'Hit';
-    hitButton.onclick = hit;
-    hitButton.classList.add('game-action-button'); // Apply general button styling
-    document.getElementById('game-area').appendChild(hitButton);
-
-    standButton = document.createElement('button');
-    standButton.id = 'stand-button';
-    standButton.innerText = 'Stand';
-    standButton.onclick = stand;
-    standButton.classList.add('game-action-button'); // Apply general button styling
-    document.getElementById('game-area').appendChild(standButton);
-  }
-
-  // Ensure "Play Again" button is hidden at the start of a new round
-  playTurnButton.style.display = 'none';
-
-  // Update initial UI
-  updateBlackjackUI(); // This will now set the initial score in resultDiv
-
-  // Check for immediate Blackjacks (before player takes action)
-  const playerValue = calculateHandValue(playerHand);
-  const dealerValue = calculateHandValue(dealerHand); // Actual value for internal check
-
-  if (playerValue === 21 && playerHand.length === 2) {
-    resultDiv.innerText = 'BLACKJACK! You win!';
-    endBlackjackGame(); // Ends the game immediately
-  } else if (dealerValue === 21 && dealerHand.length === 2) {
-    resultDiv.innerText = 'Dealer has BLACKJACK! Dealer wins.';
-    endBlackjackGame(); // Ends the game immediately
-  } else {
-    // If no immediate Blackjack, resultDiv is already updated by updateBlackjackUI()
-    // No explicit prompt needed here, as updateBlackjackUI handles it.
-  }
-}
-
-
+// --- WAR Game ---
 function startWar() {
-  showScreen('game-screen', 'War'); // Use the generic game screen
-  const deck = new Deck({ gameType: 'war' }); // Use new Deck constructor
-  deck.shuffle();
-  [playerDeck, enemyDeck] = deck.dealHalf();
+  gameMode = 'war';
+  showScreen('game-screen');
+  gameTitle.innerText = 'War';
+  playTurnButton.style.display = 'block';
+  resultDiv.innerText = '';
 
-  playTurnButton.style.display = 'inline-block';
-  playTurnButton.innerText = 'Play Turn';
-  playTurnButton.onclick = playWarTurn;
-  resultDiv.innerText = 'Ready to play War!';
+  currentDeck = new Deck({ gameType: 'war' });
+  playerHand = currentDeck.deal(26);
+  enemyHand = currentDeck.deal(26);
 
-  renderHand('player-hand', []); // Start with empty hands shown
-  renderHand('enemy-hand', []);
+  updateWarUI();
+}
 
-  // Hide Blackjack specific buttons (already handled by showScreen, but good to be explicit)
-  if (hitButton) hitButton.style.display = 'none';
-  if (standButton) standButton.style.display = 'none';
+function updateWarUI() {
+  enemyCardCount.innerText = enemyHand.length;
+  playerCardCount.innerText = playerHand.length;
 
-  // Center the single cards in War
-  playerHandDiv.style.justifyContent = 'center';
-  enemyHandDiv.style.justifyContent = 'center';
+  // Clear visual hands in War as cards are played from top of deck
+  enemyHandDiv.innerHTML = '';
+  playerHandDiv.innerHTML = '';
 
-  // Show player info divs
-  togglePlayerInfo(true);
-  updateCardCounts(); // Initial card count
+  // Show a "deck" placeholder if cards remain
+  if (enemyHand.length > 0) {
+    const backCard = document.createElement('div');
+    backCard.classList.add('card', 'back');
+    backCard.style.backgroundColor = '#666'; // Card back color
+    backCard.style.color = 'white';
+    backCard.innerText = '?';
+    enemyHandDiv.appendChild(backCard);
+  }
+  if (playerHand.length > 0) {
+    const backCard = document.createElement('div');
+    backCard.classList.add('card', 'back');
+    backCard.style.backgroundColor = '#666';
+    backCard.style.color = 'white';
+    backCard.innerText = '?';
+    playerHandDiv.appendChild(backCard);
+  }
+
+  if (playerHand.length === 0 || enemyHand.length === 0) {
+    endWarGame();
+  }
 }
 
 function playWarTurn() {
-  // Check if either player is out of cards
-  if (playerDeck.length === 0 || enemyDeck.length === 0) {
-    let finalMessage = '';
-    if (playerDeck.length > enemyDeck.length) {
-      finalMessage = 'Game Over: You win the war!';
-    } else if (enemyDeck.length > playerDeck.length) {
-      finalMessage = 'Game Over: You lose the war!';
-    } else {
-      finalMessage = 'Game Over: It\'s a tie!';
-    }
-    resultDiv.innerText = finalMessage;
-    playTurnButton.disabled = true; // Disable button after game ends
-    togglePlayerInfo(false); // Hide info on game over
+  if (playerHand.length === 0 || enemyHand.length === 0) {
+    endWarGame();
     return;
   }
 
-  const playerCard = playerDeck.shift();
-  const enemyCard = enemyDeck.shift();
+  const playerCard = playerHand.shift();
+  const enemyCard = enemyHand.shift();
 
-  // Cards are not clickable during War
-  renderHand('player-hand', [playerCard], false);
-  renderHand('enemy-hand', [enemyCard], false);
-
-  if (playerCard.value > enemyCard.value) {
-    resultDiv.innerText = 'You win this round!';
-    playerDeck.push(playerCard, enemyCard); // Player takes both cards
-  } else if (enemyCard.value > playerCard.value) {
-    resultDiv.innerText = 'You lose this round!';
-    enemyDeck.push(enemyCard, playerCard); // Enemy takes both cards
-  } else {
-    resultDiv.innerText = 'It\'s a tie! Cards returned.';
-    playerDeck.push(playerCard); // Cards returned to original owners
-    enemyDeck.push(enemyCard);
-  }
-  updateCardCounts(); // Update counts after each round
-}
-
-function showDeckViewer() {
-  showScreen('game-screen', 'Deck Viewer'); // Use the generic game screen
-  const deck = new Deck({ includeJokers: true, gameType: 'viewer' }); // Use new Deck constructor
-  deck.shuffle();
-  deck.sort();
-  currentDeck = deck.cards; // Store this specific deck instance
-  focusedCardIndex = -1; // Reset focused index
-
-  // Render the full sorted deck
-  renderHand('player-hand', currentDeck, true); // Cards are clickable in Deck Viewer
-  enemyHandDiv.innerHTML = ''; // Hide enemy hand
-  playTurnButton.style.display = 'none'; // Hide play turn button
-
-  // Hide Blackjack specific buttons (already handled by showScreen)
-  if (hitButton) hitButton.style.display = 'none';
-  if (standButton) standButton.style.display = 'none';
-
-  resultDiv.innerText = 'Click a card to focus, use arrow keys to navigate.';
-
-  // Reset justify-content for Deck Viewer
-  playerHandDiv.style.justifyContent = 'flex-start';
-  enemyHandDiv.style.justifyContent = 'flex-start';
-
-  // Hide player info divs (already handled by showScreen)
-  togglePlayerInfo(false);
-
-  // When entering the Deck Viewer, set the back button to "Back to Menu"
-  updateBackButton('Back to Menu', returnToMenu);
-}
-
-// Manages focusing a card in the Deck Viewer
-function focusCard(card, index = -1) {
-  focusedCardIndex = index;
-  currentDeck = currentDeck || []; // Ensure currentDeck is initialized
-
-  renderFocusedCard(card);
-
-  // Hide enemy hand and play turn button when viewing a focused card (already handled by showScreen for initial view)
-  enemyHandDiv.innerHTML = '';
-  playTurnButton.style.display = 'none';
-
-  // Hide specific Blackjack buttons if they exist (already handled by showScreen for initial view)
-  if (hitButton) hitButton.style.display = 'none';
-  if (standButton) standButton.style.display = 'none';
-
-  // Hide player info divs (already handled by showScreen for initial view)
-  togglePlayerInfo(false);
-
-  // When a card is focused, change the back button to "Return to Deck"
-  updateBackButton('Return to Deck', returnToFullDeckView);
-}
-
-// Returns to the full deck view within the Deck Viewer
-function returnToFullDeckView() {
-  if (currentDeck) {
-    // Render the existing deck state without creating a new deck
-    renderHand('player-hand', currentDeck, true);
-    enemyHandDiv.innerHTML = ''; // Clear enemy hand area
-    playTurnButton.style.display = 'none'; // Hide play turn button
-
-    // Hide specific Blackjack buttons (already handled by showScreen)
-    if (hitButton) hitButton.style.display = 'none';
-    if (standButton) standButton.style.display = 'none';
-
-    resultDiv.innerText = 'Click a card to focus, use arrow keys to navigate.';
-    focusedCardIndex = -1; // Reset focused index
-
-    // Reset justify-content for Deck Viewer
-    playerHandDiv.style.justifyContent = 'flex-start';
-    enemyHandDiv.style.justifyContent = 'flex-start';
-
-    // Hide player info divs (already handled by showScreen)
-    togglePlayerInfo(false);
-
-    // When returning to full deck view, change the back button back to "Back to Menu"
-    updateBackButton('Back to Menu', returnToMenu);
-  } else {
-    // Fallback: If currentDeck is somehow not set (e.g., direct deep link), re-initialize the viewer
-    showDeckViewer();
-  }
-}
-
-// Add arrow key navigation for focused card in Deck Viewer
-document.addEventListener('keydown', (event) => {
-  // Only respond to keydown if the Deck Viewer screen is active
-  if (gameScreen.style.display === 'block' && gameTitle.innerText === 'Deck Viewer') {
-    if (focusedCardIndex !== -1 && currentDeck && currentDeck.length > 0) {
-      if (event.key === 'ArrowLeft' && focusedCardIndex > 0) {
-        focusedCardIndex--;
-        renderFocusedCard(currentDeck[focusedCardIndex]);
-      } else if (event.key === 'ArrowRight' && focusedCardIndex < currentDeck.length - 1) {
-        focusedCardIndex++;
-        renderFocusedCard(currentDeck[focusedCardIndex]);
-      }
-    }
-  }
-});
-
-function returnToMenu() {
-  document.getElementById('menu-screen').style.display = 'block';
-  gameScreen.style.display = 'none'; // Hide generic game screen
-  doudizhuGameScreen.style.display = 'none'; // Hide Doudizhu game screen
-
-  // Reset game state for a clean return to menu for all games
-  playerDeck = [];
-  enemyDeck = [];
-  currentDeck = null;
-  focusedCardIndex = -1;
-  playTurnButton.disabled = false;
-  playTurnButton.style.display = 'none';
-
-  // Hide specific Blackjack buttons
-  if (hitButton) hitButton.style.display = 'none';
-  if (standButton) standButton.style.display = 'none';
-
-  // Reset Blackjack specific variables (but keep win counters)
-  blackjackDeck = null;
-  playerHand = [];
-  dealerHand = [];
-  gameStatus = 'playing';
-
-  // Reset Doudizhu specific variables
-  doudizhuDeck = null;
-  doudizhuPlayerHand = [];
-  doudizhuOpponent1Hand = [];
-  doudizhuOpponent2Hand = [];
-  doudizhuLandlordPile = []; // Clear landlord pile
-  doudizhuPlayedCards = [];
-  doudizhuGameState = 'bidding';
-  doudizhuLandlord = null;
-  doudizhuBids = [];
-  doudizhuCurrentBidderIndex = 0;
-  doudizhuLastPlayedPattern = null;
-  doudizhuLastPlayedCards = [];
-  doudizhuCurrentTurn = 0;
-  doudizhuConsecutivePasses = 0; // Reset Doudizhu pass counter
-  doudizhuPlayerWhoLastPlayed = null; // Reset Doudizhu last player
-
-  // Hide player info divs (used by War/Blackjack)
-  togglePlayerInfo(false);
-
-  // Clear hands display for all games
+  // Display the played cards
   playerHandDiv.innerHTML = '';
   enemyHandDiv.innerHTML = '';
-  doudizhuPlayerHandDiv.innerHTML = '';
-  doudizhuOpponent1HandDiv.innerHTML = '';
-  doudizhuOpponent2HandDiv.innerHTML = '';
-  doudizhuPlayedCardsDiv.innerHTML = '';
+  playerHandDiv.appendChild(createCardElement(playerCard));
+  enemyHandDiv.appendChild(createCardElement(enemyCard));
 
+  resultDiv.innerText = `You played ${playerCard.toString()}. Opponent played ${enemyCard.toString()}.`;
 
-  // Reset justify-content for hands (used by War/Blackjack/Deck Viewer)
-  playerHandDiv.style.justifyContent = 'flex-start';
-  enemyHandDiv.style.justifyContent = 'flex-start';
+  if (playerCard.value > enemyCard.value) {
+    resultDiv.innerText += ' You win the round!';
+    playerHand.push(playerCard, enemyCard);
+  } else if (enemyCard.value > playerCard.value) {
+    resultDiv.innerText += ' Opponent wins the round!';
+    enemyHand.push(playerCard, enemyCard);
+  } else {
+    resultDiv.innerText += ' It\'s a War!';
+    // War logic: Each player places 3 cards face down, then 1 face up.
+    // Simplified: Just put 3 cards from deck + played cards for the winner.
+    let warPile = [playerCard, enemyCard];
+    for (let i = 0; i < 3; i++) {
+      if (playerHand.length > 0) warPile.push(playerHand.shift());
+      if (enemyHand.length > 0) warPile.push(enemyHand.shift());
+    }
+    // Recursively play another turn for the war winner
+    // This is a simplified approach, a real war would involve a "burn" pile
+    // and then a new comparison. For this simple game, we'll just determine winner now
+    // and add all cards to their pile.
+    const newPlayerCard = playerHand.shift();
+    const newEnemyCard = enemyHand.shift();
 
-  resultDiv.innerText = ''; // Clear result text for generic screen
-  doudizhuResultDiv.innerText = ''; // Clear result text for Doudizhu screen
+    if (newPlayerCard && newEnemyCard) {
+      playerHandDiv.appendChild(createCardElement(newPlayerCard));
+      enemyHandDiv.appendChild(createCardElement(newEnemyCard));
+      warPile.push(newPlayerCard, newEnemyCard);
 
-  // Hide Doudizhu specific buttons and labels
-  if (doudizhuPlayButton) doudizhuPlayButton.style.display = 'none';
-  if (doudizhuPassButton) doudizhuPassButton.style.display = 'none';
-  if (doudizhuBiddingButtonsDiv) doudizhuBiddingButtonsDiv.style.display = 'none';
-  if (doudizhuCurrentPatternDiv) doudizhuCurrentPatternDiv.style.display = 'none';
-  if (doudizhuPlayAgainButton) doudizhuPlayAgainButton.style.display = 'none'; // Hide play again button
-
-  // Ensure Doudizhu play/pass buttons are enabled for next game start
-  if (doudizhuPlayButton) doudizhuPlayButton.disabled = false;
-  if (doudizhuPassButton) doudizhuPassButton.disabled = false;
-}
-
-// Centralized function to show a specific game screen
-function showScreen(screenId, title) {
-  // Hide all main game screens first
-  document.getElementById('menu-screen').style.display = 'none';
-  gameScreen.style.display = 'none'; // Generic game screen for War/Blackjack/Deck Viewer
-  doudizhuGameScreen.style.display = 'none'; // New Doudizhu screen
-
-  // Show the requested screen
-  document.getElementById(screenId).style.display = 'block';
-
-  // Set game title based on the screen ID
-  if (screenId === 'game-screen') {
-    gameTitle.innerText = title;
-  } else if (screenId === 'doudizhu-game-screen') {
-    doudizhuGameTitle.innerText = title;
+      if (newPlayerCard.value >= newEnemyCard.value) { // Player wins or another war
+        resultDiv.innerText += ' You won the War!';
+        playerHand.push(...warPile);
+      } else {
+        resultDiv.innerText += ' Opponent won the War!';
+        enemyHand.push(...warPile);
+      }
+    } else {
+      // Not enough cards for a full war, distribute remaining
+      if (playerHand.length === 0) {
+        resultDiv.innerText += ' Opponent wins due to insufficient cards for War!';
+        enemyHand.push(...warPile, ...playerHand); // Give player's remaining cards to opponent
+      } else {
+        resultDiv.innerText += ' You win due to insufficient cards for War!';
+        playerHand.push(...warPile, ...enemyHand); // Give opponent's remaining cards to player
+      }
+    }
   }
 
-  // Reset common game controls (for War/Blackjack)
-  playTurnButton.disabled = false;
-  playTurnButton.style.display = 'none'; // Hide by default
+  updateWarUI();
+}
 
-  // Hide specific Blackjack buttons
-  if (hitButton) hitButton.style.display = 'none';
-  if (standButton) standButton.style.display = 'none';
+function endWarGame() {
+  playTurnButton.style.display = 'none';
+  if (playerHand.length > enemyHand.length) {
+    resultDiv.innerText = `Game Over! You Win with ${playerHand.length} cards!`;
+  } else if (enemyHand.length > playerHand.length) {
+    resultDiv.innerText = `Game Over! Opponent Wins with ${enemyHand.length} cards!`;
+  } else {
+    resultDiv.innerText = `Game Over! It's a Tie!`;
+  }
+}
 
-  // Hide player info divs (used by War/Blackjack)
-  togglePlayerInfo(false);
+// Add event listener for War game play button
+playTurnButton.addEventListener('click', playWarTurn);
 
-  // Reset justify-content for hands (used by War/Blackjack/Deck Viewer)
-  playerHandDiv.style.justifyContent = 'flex-start';
-  enemyHandDiv.style.justifyContent = 'flex-start';
 
-  // Clear result text for generic screen
+// --- BLACKJACK Game ---
+let blackjackPlayerScore = 0;
+let blackjackDealerScore = 0;
+let blackjackPlayerCards = [];
+let blackjackDealerCards = [];
+const blackjackHitButton = document.createElement('button');
+blackjackHitButton.innerText = 'Hit';
+blackjackHitButton.style.display = 'none'; // Hidden by default
+const blackjackStandButton = document.createElement('button');
+blackjackStandButton.innerText = 'Stand';
+blackjackStandButton.style.display = 'none'; // Hidden by default
+
+function startBlackjack() {
+  gameMode = 'blackjack';
+  showScreen('game-screen');
+  gameTitle.innerText = 'Blackjack';
   resultDiv.innerText = '';
 
-  // Default back button behavior - will show the appropriate back button
-  updateBackButton('Back to Menu', returnToMenu);
+  // Append buttons to game area
+  const gameArea = document.getElementById('game-area');
+  gameArea.appendChild(blackjackHitButton);
+  gameArea.appendChild(blackjackStandButton);
+
+  blackjackHitButton.style.display = 'inline-block';
+  blackjackStandButton.style.display = 'inline-block';
+  playTurnButton.style.display = 'none'; // Hide War button
+
+  currentDeck = new Deck({ numDecks: 4, gameType: 'blackjack' }); // Use 4 decks for Blackjack
+  blackjackPlayerCards = [];
+  blackjackDealerCards = [];
+  blackjackPlayerScore = 0;
+  blackjackDealerScore = 0;
+
+  // Initial deal
+  blackjackPlayerCards.push(currentDeck.deal(1)[0]);
+  blackjackDealerCards.push(currentDeck.deal(1)[0]);
+  blackjackPlayerCards.push(currentDeck.deal(1)[0]);
+  blackjackDealerCards.push(currentDeck.deal(1)[0]); // Dealer's second card is face down
+
+  updateBlackjackUI();
+  checkBlackjackInitialDeal();
 }
 
-// --- Doudizhu specific functions (ISOLATED) ---
+function calculateScore(hand) {
+  let score = 0;
+  let numAces = 0;
+  hand.forEach(card => {
+    score += card.value;
+    if (card.rank === 'A') {
+      numAces++;
+    }
+  });
 
-// Renders a Doudizhu hand
-function renderDoudizhuHand(containerId, cards, clickable = false, showFaceUp = true) {
-  const container = document.getElementById(containerId);
-  container.innerHTML = '';
-  if (!cards || cards.length === 0) return;
+  // Adjust for Aces
+  while (score > 21 && numAces > 0) {
+    score -= 10;
+    numAces--;
+  }
+  return score;
+}
 
-  // Sort cards for display in Doudizhu (e.g., by value, then suit)
-  // This is a simplified sort; actual Doudizhu sorting is more complex (e.g., by rank, then suit, then specific groups)
-  cards.sort((a, b) => {
-    // Sort by value (3 smallest, Red Joker largest)
-    if (a.value !== b.value) {
+function updateBlackjackUI(revealDealer = false) {
+  // Player's Hand
+  playerHandDiv.innerHTML = '';
+  blackjackPlayerCards.forEach(card => playerHandDiv.appendChild(createCardElement(card)));
+  blackjackPlayerScore = calculateScore(blackjackPlayerCards);
+  playerCardCount.innerText = blackjackPlayerScore;
+
+  // Dealer's Hand
+  enemyHandDiv.innerHTML = '';
+  if (!revealDealer) {
+    // Show only the first card for the dealer, second is face down
+    enemyHandDiv.appendChild(createCardElement(blackjackDealerCards[0]));
+    const backCard = document.createElement('div');
+    backCard.classList.add('card', 'back');
+    backCard.style.backgroundColor = '#666';
+    backCard.style.color = 'white';
+    backCard.innerText = '?';
+    enemyHandDiv.appendChild(backCard);
+    enemyCardCount.innerText = blackjackDealerCards[0].value; // Only show first card's value
+  } else {
+    blackjackDealerCards.forEach(card => enemyHandDiv.appendChild(createCardElement(card)));
+    blackjackDealerScore = calculateScore(blackjackDealerCards);
+    enemyCardCount.innerText = blackjackDealerScore;
+  }
+
+  resultDiv.innerText = ''; // Clear previous results
+}
+
+function checkBlackjackInitialDeal() {
+  if (blackjackPlayerScore === 21 && blackjackDealerScore === 21) {
+    resultDiv.innerText = 'Both have Blackjack! It\'s a Push!';
+    endBlackjackGame();
+  } else if (blackjackPlayerScore === 21) {
+    resultDiv.innerText = 'Blackjack! You Win!';
+    endBlackjackGame();
+  } else if (blackjackDealerScore === 21) {
+    resultDiv.innerText = 'Dealer has Blackjack! You Lose!';
+    endBlackjackGame();
+  }
+}
+
+function playerHit() {
+  blackjackPlayerCards.push(currentDeck.deal(1)[0]);
+  updateBlackjackUI();
+
+  if (blackjackPlayerScore > 21) {
+    resultDiv.innerText = 'Bust! You Lose!';
+    endBlackjackGame();
+  }
+}
+
+async function playerStand() {
+  blackjackHitButton.style.display = 'none';
+  blackjackStandButton.style.display = 'none';
+
+  updateBlackjackUI(true); // Reveal dealer's hand
+
+  while (blackjackDealerScore < 17) {
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate dealer thinking
+    blackjackDealerCards.push(currentDeck.deal(1)[0]);
+    updateBlackjackUI(true);
+    blackjackDealerScore = calculateScore(blackjackDealerCards);
+  }
+
+  determineBlackjackWinner();
+}
+
+function determineBlackjackWinner() {
+  if (blackjackDealerScore > 21) {
+    resultDiv.innerText = 'Dealer Busts! You Win!';
+  } else if (blackjackPlayerScore > blackjackDealerScore) {
+    resultDiv.innerText = 'You Win!';
+  } else if (blackjackDealerScore > blackjackPlayerScore) {
+    resultDiv.innerText = 'You Lose!';
+  } else {
+    resultDiv.innerText = 'It\'s a Push!';
+  }
+  endBlackjackGame();
+}
+
+function endBlackjackGame() {
+  blackjackHitButton.style.display = 'none';
+  blackjackStandButton.style.display = 'none';
+  // Allow returning to menu
+}
+
+// Add event listeners for Blackjack buttons
+blackjackHitButton.addEventListener('click', playerHit);
+blackjackStandButton.addEventListener('click', playerStand);
+
+
+// --- DECK VIEWER ---
+function showDeckViewer() {
+  gameMode = 'deckViewer';
+  showScreen('game-screen');
+  gameTitle.innerText = 'Deck Viewer';
+  playTurnButton.style.display = 'none';
+  blackjackHitButton.style.display = 'none';
+  blackjackStandButton.style.display = 'none';
+  resultDiv.innerText = ''; // Clear results
+
+  // Create a new div specifically for the deck viewer to display all cards
+  let deckViewerDiv = document.getElementById('deck-viewer');
+  if (!deckViewerDiv) {
+    deckViewerDiv = document.createElement('div');
+    deckViewerDiv.id = 'deck-viewer';
+    document.getElementById('game-area').appendChild(deckViewerDiv);
+  } else {
+    deckViewerDiv.innerHTML = ''; // Clear previous cards
+  }
+
+  currentDeck = new Deck({ includeJokers: true, gameType: 'viewer' }); // Include jokers for viewing
+  currentDeck.cards.sort((a, b) => {
+    // Sort by suit then by value for a nice display
+    if (a.suit === b.suit) {
       return a.value - b.value;
     }
-    // Then by suit (optional, but good for consistency)
-    const suitOrder = { '♣': 0, '♦': 1, '♥': 2, '♠': 3 }; // Standard Doudizhu suit order
-    return suitOrder[a.suit] - suitOrder[b.suit];
+    const suitOrder = ['♣', '♦', '♥', '♠', null]; // Order for suits, null for jokers
+    return suitOrder.indexOf(a.suit) - suitOrder.indexOf(b.suit);
   });
 
-
-  cards.forEach((card, index) => {
-    const img = document.createElement('img');
-    img.className = 'card doudizhu-card'; // Add specific class for Doudizhu styling
-    img.style.zIndex = index; // For overlapping effect
-    img.cardObject = card; // Store the card object on the DOM element for easy retrieval
-
-    if (!showFaceUp) {
-      img.src = `assets/cards/card_back.svg`; // Show card back
-      img.alt = `Card Back`;
-    } else {
-      img.src = `assets/cards/${getCardFileName(card)}`;
-      img.alt = card.toString();
-    }
-
-
-    if (clickable) {
-      img.addEventListener('click', (event) => {
-        // Toggle selection for playing cards
-        event.target.classList.toggle('selected');
-      });
-    }
-    container.appendChild(img);
+  currentDeck.cards.forEach(card => {
+    deckViewerDiv.appendChild(createCardElement(card));
   });
+
+  // Hide enemy and player hand display elements
+  enemyHandDiv.style.display = 'none';
+  playerHandDiv.style.display = 'none';
+  document.getElementById('enemy-player-info').style.display = 'none';
+  document.getElementById('player-player-info').style.display = 'none';
 }
 
-// Updates the Doudizhu UI (hands, played cards, status)
-function updateDoudizhuUI() {
-  renderDoudizhuHand('doudizhu-player-hand', doudizhuPlayerHand, true, true); // Player's hand is clickable and face up
-  renderDoudizhuHand('doudizhu-opponent1-hand', doudizhuOpponent1Hand, false, false); // Opponents' hands are not clickable and face down
-  renderDoudizhuHand('doudizhu-opponent2-hand', doudizhuOpponent2Hand, false, false);
-
-  if (doudizhuGameState === 'bidding') {
-    doudizhuCenterLabel.innerText = 'Landlord Cards';
-    renderDoudizhuHand('doudizhu-played-cards', doudizhuLandlordPile, false, true); // Landlord cards are face up
-    doudizhuCurrentPatternDiv.style.display = 'none'; // Hide current pattern during bidding
-    doudizhuPlayButton.style.display = 'none';
-    doudizhuPassButton.style.display = 'none';
-    doudizhuBiddingButtonsDiv.style.display = 'flex'; // Show bidding buttons (flex for row layout)
-    doudizhuResultDiv.innerText = `Player ${doudizhuCurrentBidderIndex === 0 ? 'You' : doudizhuCurrentBidderIndex === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn to bid.`;
-  } else if (doudizhuGameState === 'playing') {
-    doudizhuCenterLabel.innerText = 'Last Played Cards';
-    renderDoudizhuHand('doudizhu-played-cards', doudizhuLastPlayedCards, false, true); // Last played cards are face up
-    doudizhuCurrentPatternDiv.style.display = 'block'; // Show current pattern
-    doudizhuPatternTextSpan.innerText = doudizhuLastPlayedPattern ? doudizhuLastPlayedPattern.type + (doudizhuLastPlayedPattern.value ? ` (${doudizhuLastPlayedPattern.value})` : '') : 'None';
-    
-    // Control player action buttons based on current turn
-    if (doudizhuCurrentTurn === 0) { // It's the player's turn
-      doudizhuPlayButton.style.display = 'inline-block';
-      doudizhuPassButton.style.display = 'inline-block';
-      doudizhuPlayButton.disabled = false; // Ensure enabled
-      doudizhuPassButton.disabled = false; // Ensure enabled
-    } else { // It's an AI's turn
-      doudizhuPlayButton.style.display = 'none';
-      doudizhuPassButton.style.display = 'none';
-      doudizhuPlayButton.disabled = true; // Ensure disabled
-      doudizhuPassButton.disabled = true; // Ensure disabled
-    }
-    doudizhuBiddingButtonsDiv.style.display = 'none'; // Hide bidding buttons
-    doudizhuResultDiv.innerText = `Landlord: ${doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2'}. Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn!`;
-  }
-}
+// --- Doudizhu Game (Landlord Game) - Single Player ---
 
 function startDoudizhu() {
-  showScreen('doudizhu-game-screen', 'Doudizhu'); // Use the new Doudizhu specific screen
-  doudizhuResultDiv.innerText = 'Dealing cards and starting bidding...';
+  gameMode = 'doudizhu';
+  showScreen('doudizhu-game-screen');
+  doudizhuResultDiv.innerText = 'Dealing cards...';
 
-  // Initialize Doudizhu specific game state
-  doudizhuDeck = new Deck({ numDecks: 1, includeJokers: true, gameType: 'doudizhu' });
-  doudizhuDeck.shuffle();
+  // Hide general game screen elements
+  gameScreen.style.display = 'none';
+  blackjackHitButton.style.display = 'none';
+  blackjackStandButton.style.display = 'none';
+  playTurnButton.style.display = 'none';
 
-  // Deal 17 cards to each player, 3 to the landlord's pile
-  const totalCards = doudizhuDeck.cards.length; // 54 cards
-  const numCardsPerPlayer = 17;
-  // Ensure the deck has enough cards for this deal
-  if (totalCards < (numCardsPerPlayer * 3)) {
-    console.error("Not enough cards in deck for Doudizhu deal!");
-    doudizhuResultDiv.innerText = "Error: Not enough cards to start Doudizhu.";
-    return;
-  }
-
-  doudizhuPlayerHand = [];
-  doudizhuOpponent1Hand = [];
-  doudizhuOpponent2Hand = [];
-  doudizhuLandlordPile = []; // Initialize landlord pile
-
-  for (let i = 0; i < numCardsPerPlayer; i++) {
-    doudizhuPlayerHand.push(doudizhuDeck.deal());
-    doudizhuOpponent1Hand.push(doudizhuDeck.deal());
-    doudizhuOpponent2Hand.push(doudizhuDeck.deal());
-  }
-
-  // The remaining cards are the landlord's pile (should be 3)
-  while (doudizhuDeck.cards.length > 0) {
-    doudizhuLandlordPile.push(doudizhuDeck.deal());
-  }
-
-  // Sort player's hand for display
-  doudizhuPlayerHand.sort((a, b) => a.value - b.value);
-
-  // Set initial game state
-  doudizhuGameState = 'bidding'; // Start with bidding phase
-  doudizhuBids = [null, null, null]; // Player, Opponent 1, Opponent 2
-  doudizhuCurrentBidderIndex = 0; // Player starts bidding
-
-  // Reset turn tracking variables for a new game
-  doudizhuConsecutivePasses = 0;
-  doudizhuPlayerWhoLastPlayed = null;
+  // Initialize game state for single player
+  currentDeck = new Deck({ includeJokers: true, gameType: 'doudizhu' });
+  doudizhuHands = [[], [], []]; // Player, Opponent1, Opponent2
+  doudizhuLandlord = -1;
+  doudizhuCurrentTurn = -1;
   doudizhuLastPlayedPattern = null;
   doudizhuLastPlayedCards = [];
+  doudizhuSelectedCards = [];
+  doudizhuBiddingState = {
+    playerBid: false,
+    opponent1Bid: false,
+    opponent2Bid: false,
+    bidsCount: 0
+  };
+  doudizhuPasses = 0;
 
-
-  // Get references to bidding buttons and set up event listeners
-  doudizhuBiddingButtonsDiv = document.getElementById('doudizhu-bidding-buttons');
-  doudizhuCallLandlordButton = document.getElementById('doudizhu-call-landlord-button');
-  doudizhuDontCallButton = document.getElementById('doudizhu-dont-call-button');
-
-  if (doudizhuCallLandlordButton) {
-    doudizhuCallLandlordButton.onclick = () => handleBid(doudizhuCurrentBidderIndex, true);
-  }
-  if (doudizhuDontCallButton) {
-    doudizhuDontCallButton.onclick = () => handleBid(doudizhuCurrentBidderIndex, false);
-  }
-
-  // Initialize and set up event listeners for Play and Pass buttons
-  doudizhuPlayButton = document.getElementById('doudizhu-play-button');
-  if (doudizhuPlayButton) { // Check if the element exists
-    doudizhuPlayButton.onclick = playDoudizhuCards;
-    doudizhuPlayButton.classList.add('doudizhu-action-button'); // Add styling class
+  // Deal 17 cards to each player
+  for (let i = 0; i < 17; i++) {
+    doudizhuHands[0].push(currentDeck.deal(1)[0]);
+    doudizhuHands[1].push(currentDeck.deal(1)[0]);
+    doudizhuHands[2].push(currentDeck.deal(1)[0]);
   }
 
-  doudizhuPassButton = document.getElementById('doudizhu-pass-button');
-  if (doudizhuPassButton) { // Check if the element exists
-    doudizhuPassButton.onclick = passDoudizhuTurn;
-    doudizhuPassButton.classList.add('doudizhu-action-button'); // Add styling class
-  }
+  // Sort player's hand by value for easier viewing
+  doudizhuHands[0].sort((a, b) => a.value - b.value);
 
-  // Create Doudizhu Play Again button if it doesn't exist
-  if (!document.getElementById('doudizhu-play-again-button')) {
-    doudizhuPlayAgainButton = document.createElement('button');
-    doudizhuPlayAgainButton.id = 'doudizhu-play-again-button';
-    doudizhuPlayAgainButton.innerText = 'Play Again';
-    doudizhuPlayAgainButton.onclick = startDoudizhu;
-    doudizhuPlayAgainButton.classList.add('doudizhu-action-button');
-    document.getElementById('doudizhu-game-area').appendChild(doudizhuPlayAgainButton);
-  }
-  doudizhuPlayAgainButton.style.display = 'none'; // Hide initially
+  // The last 3 cards are "landlord's cards"
+  const landlordCards = currentDeck.deal(3);
+  doudizhuResultDiv.innerText += ` Landlord's cards: ${landlordCards.map(c => c.toString()).join(', ')}.`;
 
-  // Ensure player's play/pass buttons are disabled at the start of bidding
-  if (doudizhuPlayButton) doudizhuPlayButton.disabled = true;
-  if (doudizhuPassButton) doudizhuPassButton.disabled = true;
+  // Start bidding
+  doudizhuBiddingButtons.style.display = 'flex';
+  doudizhuPlayButton.style.display = 'none';
+  doudizhuPassButton.style.display = 'none';
+  doudizhuResultDiv.innerText = 'Who wants to be the Landlord?';
 
-  // Initial UI update
+  // Randomly select who starts bidding (simplified to player for now)
+  doudizhuCurrentTurn = 0; // Player starts bidding
   updateDoudizhuUI();
 
-  // If the first bidder is an AI, trigger their bid
-  if (doudizhuCurrentBidderIndex !== 0) {
-    setTimeout(() => {
-      let aiHand;
-      if (doudizhuCurrentBidderIndex === 1) aiHand = doudizhuOpponent1Hand;
-      else if (doudizhuCurrentBidderIndex === 2) aiHand = doudizhuOpponent2Hand;
-      const aiBidDecision = aiMakeBid(doudizhuCurrentBidderIndex, aiHand);
-      handleBid(doudizhuCurrentBidderIndex, aiBidDecision);
-    }, 1000); // Small delay for AI bid
-  }
+  // Attach event listeners for Doudizhu buttons
+  doudizhuPlayButton.onclick = playDoudizhuCards;
+  doudizhuPassButton.onclick = passDoudizhuTurn;
+  doudizhuCallLandlordButton.onclick = () => handleBidding(true);
+  doudizhuDontCallButton.onclick = () => handleBidding(false);
 }
 
-// Function for AI to make a bid (call landlord or not)
-function aiMakeBid(playerIndex, hand) {
-  // Simple AI bidding strategy:
-  // Call landlord if hand is strong (e.g., has a Bomb, a Rocket, or many high cards/2s)
-  // Count 2s and Jokers
-  let numTwos = hand.filter(card => card.value === 15).length;
-  let numJokers = hand.filter(card => card.rank === 'JOKER').length;
+function updateDoudizhuUI() {
+  // Render player's hand (myPlayerIndex determines which hand is 'mine' in multiplayer)
+  doudizhuPlayerHandDiv.innerHTML = '';
+  doudizhuHands[0].forEach(card => { // doudizhuHands[0] always represents 'my' hand for UI
+    const cardElement = createCardElement(card);
+    cardElement.classList.add('doudizhu-card');
+    // Ensure data attributes are strings
+    cardElement.dataset.cardSuit = card.suit === null ? 'null' : card.suit;
+    cardElement.dataset.cardRank = card.rank;
+    cardElement.dataset.cardValue = card.value.toString(); // Store as string
+    cardElement.addEventListener('click', toggleCardSelection);
+    doudizhuPlayerHandDiv.appendChild(cardElement);
+  });
 
-  // Check for bombs
-  const counts = getCardValueCounts(hand);
-  let hasBomb = false;
-  for (const count of counts.values()) {
-    if (count === 4) {
-      hasBomb = true;
-      break;
-    }
+  // Render opponent hands (just card backs or sizes if from multiplayer update)
+  // For single player, these are AI. For multiplayer, these are other players.
+  // doudizhuHands[1] and doudizhuHands[2] are now just arrays of empty objects with length for opponent card count
+  doudizhuOpponent1HandDiv.innerHTML = '';
+  for (let i = 0; i < doudizhuHands[1].length; i++) {
+    const backCard = document.createElement('div');
+    backCard.classList.add('card', 'back', 'doudizhu-card');
+    backCard.style.backgroundColor = '#666';
+    backCard.style.color = 'white';
+    backCard.innerText = '?';
+    doudizhuOpponent1HandDiv.appendChild(backCard);
   }
 
-  // Check for Rocket
-  let hasRocket = (numJokers === 2);
+  doudizhuOpponent2HandDiv.innerHTML = '';
+  for (let i = 0; i < doudizhuHands[2].length; i++) {
+    const backCard = document.createElement('div');
+    backCard.classList.add('card', 'back', 'doudizhu-card');
+    backCard.style.backgroundColor = '#666';
+    backCard.style.color = 'white';
+    backCard.innerText = '?';
+    doudizhuOpponent2HandDiv.appendChild(backCard);
+  }
 
-  // Bidding threshold
-  const strongHandThreshold = 2; // e.g., 2 or more 2s/Jokers, or a Bomb/Rocket
-
-  if (hasRocket || hasBomb || (numTwos + numJokers >= strongHandThreshold)) {
-    // AI decides to call landlord
-    return true;
+  // Render played cards
+  doudizhuPlayedCardsDiv.innerHTML = '';
+  if (doudizhuLastPlayedCards.length > 0) {
+    doudizhuLastPlayedCards.forEach(card => {
+      const cardElement = createCardElement(card);
+      cardElement.classList.add('doudizhu-card');
+      doudizhuPlayedCardsDiv.appendChild(cardElement);
+    });
+    doudizhuCurrentPatternDiv.style.display = 'block';
+    doudizhuPatternTextSpan.innerText = doudizhuLastPlayedPattern ? doudizhuLastPlayedPattern.type : 'None';
   } else {
-    // AI decides not to call landlord
-    return false;
+    doudizhuCurrentPatternDiv.style.display = 'none';
+    doudizhuPatternTextSpan.innerText = 'None';
   }
+
+  // Update button visibility based on turn and game state (simplified for single player/initial state)
+  // In multiplayer, this is largely driven by server messages.
+  if (gameMode === 'doudizhu') { // Single player mode
+      if (doudizhuCurrentTurn === 0) { // Player's turn to play or bid
+        if (doudizhuLandlord !== -1) { // Bidding is over, playing phase
+          doudizhuBiddingButtons.style.display = 'none';
+          doudizhuPlayButton.style.display = 'inline-block';
+          doudizhuPassButton.style.display = 'inline-block';
+        }
+      } else { // Opponent's turn
+        doudizhuPlayButton.style.display = 'none';
+        doudizhuPassButton.style.display = 'none';
+      }
+  }
+  // For multiplayer, button visibility is managed in onmessage handlers for 'gameStateUpdate' and 'biddingUpdate'
 }
 
-// Handles a bid from a player (true for call, false for don't call)
-function handleBid(playerIndex, bid) {
-  doudizhuBids[playerIndex] = bid;
-  doudizhuResultDiv.innerText = `Player ${playerIndex === 0 ? 'You' : playerIndex === 1 ? 'Opponent 1' : 'Opponent 2'} ${bid ? 'called' : 'didn\'t call'} landlord.`;
+function toggleCardSelection(event) {
+  const cardElement = event.currentTarget;
+  const cardSuit = cardElement.dataset.cardSuit === 'null' ? null : cardElement.dataset.cardSuit;
+  const cardRank = cardElement.dataset.cardRank;
+  const cardValue = parseInt(cardElement.dataset.cardValue);
 
-  // Move to next bidder
-  doudizhuCurrentBidderIndex = (doudizhuCurrentBidderIndex + 1) % 3;
+  const card = new Card(cardSuit, cardRank, cardValue, cardRank === 'JOKER' ? (cardValue === 17 ? 'red' : 'black') : null);
 
-  let calledLandlordPlayers = doudizhuBids.map((b, i) => b ? i : -1).filter(i => i !== -1);
-  let allBidsReceived = doudizhuBids.every(b => b !== null);
-  let atLeastOneCalled = calledLandlordPlayers.length > 0;
+  const index = doudizhuSelectedCards.findIndex(
+    c => c.suit === card.suit && c.rank === card.rank && c.value === card.value
+  );
 
-  if (allBidsReceived || atLeastOneCalled) {
-    if (calledLandlordPlayers.length === 0) {
-      doudizhuResultDiv.innerText = "No one called landlord. Restarting game...";
-      setTimeout(startDoudizhu, 2000);
-    } else if (calledLandlordPlayers.length === 1) {
-      doudizhuLandlord = calledLandlordPlayers[0];
-      assignLandlordCardsAndStartGame();
+  if (index > -1) {
+    doudizhuSelectedCards.splice(index, 1);
+    cardElement.classList.remove('selected');
+  } else {
+    doudizhuSelectedCards.push(card);
+    cardElement.classList.add('selected');
+  }
+  // Sort selected cards to maintain order
+  doudizhuSelectedCards.sort((a, b) => a.value - b.value);
+  console.log("Selected Cards:", doudizhuSelectedCards.map(c => c.toString()));
+}
+
+// Simplified bidding logic (for single-player mode)
+function handleBidding(playerCallsLandlord) {
+    if (gameMode === 'multiplayerDoudizhu') {
+        // Send bidding action to server
+        sendWebSocketMessage('biddingAction', { action: playerCallsLandlord ? 'call' : 'pass', playerId: myPlayerId });
+        doudizhuBiddingButtons.style.display = 'none'; // Hide buttons until server responds
+        doudizhuResultDiv.innerText = `You ${playerCallsLandlord ? 'called' : 'passed'}. Waiting for others...`;
+        return;
+    }
+
+  doudizhuBiddingState.bidsCount++;
+
+  if (playerCallsLandlord) {
+    doudizhuLandlord = 0; // Player becomes landlord
+    doudizhuResultDiv.innerText = 'You called Landlord!';
+    endBiddingPhase();
+  } else {
+    doudizhuResultDiv.innerText = 'You passed.';
+    // Simplified: If player passes, opponent 1 gets a chance (very basic logic)
+    if (doudizhuBiddingState.bidsCount >= 3) { // All players had a chance, no one called
+      doudizhuResultDiv.innerText = 'No one called landlord. Game restarts or ends (simplified).';
+      // For simplicity, let's just make player the landlord if no one else calls after 3 bids.
+      // A proper game would involve more complex bidding rounds or re-dealing.
+      doudizhuLandlord = 0;
+      endBiddingPhase();
     } else {
-      // Multiple players called, randomly pick one
-      doudizhuLandlord = calledLandlordPlayers[Math.floor(Math.random() * calledLandlordPlayers.length)];
-      assignLandlordCardsAndStartGame();
-    }
-  } else {
-    updateDoudizhuUI(); // Update to show next bidder's turn
-    // If the next bidder is an AI, trigger their bid
-    if (doudizhuCurrentBidderIndex !== 0) { // If not the player
+      // Simulate opponent bidding (randomly)
       setTimeout(() => {
-        let aiHand;
-        if (doudizhuCurrentBidderIndex === 1) aiHand = doudizhuOpponent1Hand;
-        else if (doudizhuCurrentBidderIndex === 2) aiHand = doudizhuOpponent2Hand;
-        const aiBidDecision = aiMakeBid(doudizhuCurrentBidderIndex, aiHand);
-        handleBid(doudizhuCurrentBidderIndex, aiBidDecision);
-      }, 1000); // Small delay for AI bid
+        const opponentCalled = Math.random() < 0.5; // 50% chance to call
+        if (opponentCalled) {
+          doudizhuLandlord = doudizhuCurrentTurn === 0 ? 1 : 2; // Next opponent becomes landlord
+          doudizhuResultDiv.innerText = `Opponent ${doudizhuLandlord} called Landlord!`;
+          endBiddingPhase();
+        } else {
+          doudizhuResultDiv.innerText = `Opponent ${doudizhuCurrentTurn === 0 ? 1 : 2} passed.`;
+          doudizhuCurrentTurn = (doudizhuCurrentTurn + 1) % 3; // Move to next player
+          updateDoudizhuUI(); // Update UI after opponent's "turn"
+          if (doudizhuCurrentTurn !== 0) { // If it's still AI turn, simulate another bid
+            // For now, let's keep it simple: if player passes and AI passes, player becomes landlord.
+            // This is a gross simplification for demonstration.
+            if (doudizhuBiddingState.bidsCount >= 2 && doudizhuLandlord === -1) { // If player and one AI passed
+                doudizhuLandlord = 0; // Player becomes landlord
+                doudizhuResultDiv.innerText = 'All opponents passed. You are the Landlord by default!';
+                endBiddingPhase();
+            } else if (doudizhuCurrentTurn === 1) { // Opponent 1's turn
+                handleOpponentBidding(1);
+            } else if (doudizhuCurrentTurn === 2) { // Opponent 2's turn
+                handleOpponentBidding(2);
+            }
+          }
+        }
+      }, 1000); // Simulate delay
     }
   }
 }
 
-// Assigns landlord cards and transitions to playing phase
-function assignLandlordCardsAndStartGame() {
-  // Add landlord pile to the chosen landlord's hand
-  if (doudizhuLandlord === 0) {
-    doudizhuPlayerHand.push(...doudizhuLandlordPile);
-    doudizhuPlayerHand.sort((a, b) => a.value - b.value); // Re-sort player's hand
-  } else if (doudizhuLandlord === 1) {
-    doudizhuOpponent1Hand.push(...doudizhuLandlordPile);
-    // Opponent hands are not sorted as they are hidden, but for AI logic, sorting is good practice
-    doudizhuOpponent1Hand.sort((a, b) => a.value - b.value);
-  } else if (doudizhuLandlord === 2) {
-    doudizhuOpponent2Hand.push(...doudizhuLandlordPile);
-    // Opponent hands are not sorted as they are hidden, but for AI logic, sorting is good practice
-    doudizhuOpponent2Hand.sort((a, b) => a.value - b.value);
-  }
-  doudizhuLandlordPile = []; // Clear the landlord pile after assignment
-
-  doudizhuGameState = 'playing';
-  doudizhuResultDiv.innerText = `Player ${doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2'} is the Landlord!`;
-
-  // Set initial turn to the landlord
-  doudizhuCurrentTurn = doudizhuLandlord;
-
-  // Hide bidding buttons
-  if (doudizhuBiddingButtonsDiv) doudizhuBiddingButtonsDiv.style.display = 'none';
-  // Show play/pass buttons
-  if (doudizhuPlayButton) doudizhuPlayButton.style.display = 'inline-block';
-  if (doudizhuPassButton) doudizhuPassButton.style.display = 'inline-block';
-
-  updateDoudizhuUI(); // Update UI for playing phase
-
-  // Explicitly enable/disable player buttons based on whose turn it is
-  if (doudizhuCurrentTurn === 0) { // Player is landlord
-    if (doudizhuPlayButton) doudizhuPlayButton.disabled = false;
-    if (doudizhuPassButton) doudizhuPassButton.disabled = false;
-    // No need to call nextDoudizhuTurn here, player takes their turn
-  } else { // AI is landlord
-    if (doudizhuPlayButton) doudizhuPlayButton.disabled = true;
-    if (doudizhuPassButton) doudizhuPassButton.disabled = true;
-    // Trigger the first AI turn via nextDoudizhuTurn's internal setTimeout
-    nextDoudizhuTurn();
-  }
+function handleOpponentBidding(opponentIndex) {
+    setTimeout(() => {
+        const opponentCalled = Math.random() < 0.7; // Higher chance for AI to call
+        if (opponentCalled) {
+            doudizhuLandlord = opponentIndex;
+            doudizhuResultDiv.innerText = `Opponent ${opponentIndex} called Landlord!`;
+            endBiddingPhase();
+        } else {
+            doudizhuResultDiv.innerText = `Opponent ${opponentIndex} passed.`;
+            doudizhuCurrentTurn = (doudizhuCurrentTurn + 1) % 3; // Move to next player
+            if (doudizhuCurrentTurn === 0) { // Back to player
+                // If everyone passed, player gets landlord by default (simplified)
+                if (doudizhuLandlord === -1 && doudizhuBiddingState.bidsCount >= 2) {
+                    doudizhuLandlord = 0;
+                    doudizhuResultDiv.innerText = 'No one called Landlord. You are the Landlord by default!';
+                }
+                endBiddingPhase();
+            } else { // Continue AI bidding
+                handleOpponentBidding(doudizhuCurrentTurn);
+            }
+            updateDoudizhuUI();
+        }
+    }, 1000);
 }
 
 
-// --- Doudizhu Pattern Recognition and Comparison Functions ---
-
-/**
- * Helper to count occurrences of each card value (rank) in a hand.
- * @param {Array<Card>} cards - An array of Card objects.
- * @returns {Map<number, number>} A map where key is card value and value is count.
- */
-function getCardValueCounts(cards) {
-  const counts = new Map();
-  for (const card of cards) {
-    counts.set(card.value, (counts.get(card.value) || 0) + 1);
-  }
-  return counts;
-}
-
-/**
- * Helper to get unique sorted values from a hand.
- * @param {Array<Card>} cards - An array of Card objects.
- * @returns {Array<number>} Sorted array of unique card values.
- */
-function getUniqueSortedValues(cards) {
-  return Array.from(new Set(cards.map(card => card.value))).sort((a, b) => a - b);
-}
-
-/**
- * Checks if cards form a Rocket (Joker + Joker).
- * @param {Array<Card>} cards - Selected cards.
- * @returns {object|null} Pattern object or null.
- */
-function isRocket(cards) {
-  if (cards.length === 2 && cards.every(c => c.rank === 'JOKER')) {
-    // Ensure one black and one red joker
-    if (cards[0].color !== cards[1].color) {
-      return { type: 'Rocket', value: 100, length: 2 }; // Highest value
-    }
-  }
-  return null;
-}
-
-/**
- * Checks if cards form a Bomb (four-of-a-kind).
- * @param {Array<Card>} cards - Selected cards.
- * @returns {object|null} Pattern object or null.
- */
-function isBomb(cards) {
-  if (cards.length === 4) {
-    const counts = getCardValueCounts(cards);
-    if (counts.size === 1 && counts.values().next().value === 4) {
-      return { type: 'Bomb', value: cards[0].value, length: 4 };
-    }
-  }
-  return null;
-}
-
-/**
- * Checks if cards form a Single.
- * @param {Array<Card>} cards - Selected cards.
- * @returns {object|null} Pattern object or null.
- */
-function isSingle(cards) {
-  if (cards.length === 1) {
-    return { type: 'Single', value: cards[0].value, length: 1 };
-  }
-  return null;
-}
-
-/**
- * Checks if cards form a Pair.
- * @param {Array<Card>} cards - Selected cards.
- * @returns {object|null} Pattern object or null.
- */
-function isPair(cards) {
-  if (cards.length === 2) {
-    if (cards[0].value === cards[1].value) {
-      return { type: 'Pair', value: cards[0].value, length: 2 };
-    }
-  }
-  return null;
-}
-
-/**
- * Checks if cards form a Triplet.
- * @param {Array<Card>} cards - Selected cards.
- * @returns {object|null} Pattern object or null.
- */
-function isTriplet(cards) {
-  if (cards.length === 3) {
-    if (cards[0].value === cards[1].value && cards[1].value === cards[2].value) {
-      return { type: 'Triplet', value: cards[0].value, length: 3 };
-    }
-  }
-  return null;
-}
-
-/**
- * Checks if cards form a Triplet + Single.
- * @param {Array<Card>} cards - Selected cards.
- * @returns {object|null} Pattern object or null.
- */
-function isTripletWithSingle(cards) {
-  if (cards.length === 4) {
-    const counts = getCardValueCounts(cards);
-    if (counts.size === 2) {
-      let tripletValue = -1;
-      let singleValue = -1;
-      for (const [value, count] of counts.entries()) {
-        if (count === 3) tripletValue = value;
-        else if (count === 1) singleValue = value;
-      }
-      if (tripletValue !== -1 && singleValue !== -1) {
-        return { type: 'Triplet + Single', value: tripletValue, length: 4 };
-      }
-    }
-  }
-  return null;
-}
-
-/**
- * Checks if cards form a Triplet + Pair.
- * @param {Array<Card>} cards - Selected cards.
- * @returns {object|null} Pattern object or null.
- */
-function isTripletWithPair(cards) {
-  if (cards.length === 5) {
-    const counts = getCardValueCounts(cards);
-    if (counts.size === 2) {
-      let tripletValue = -1;
-      let pairValue = -1;
-      for (const [value, count] of counts.entries()) {
-        if (count === 3) tripletValue = value;
-        else if (count === 2) pairValue = value;
-      }
-      if (tripletValue !== -1 && pairValue !== -1) {
-        return { type: 'Triplet + Pair', value: tripletValue, length: 5 };
-      }
-    }
-  }
-  return null;
-}
-
-/**
- * Checks if cards form a Straight.
- * @param {Array<Card>} cards - Selected cards.
- * @returns {object|null} Pattern object or null.
- */
-function isStraight(cards) {
-  if (cards.length < 5 || cards.length > 12) return null; // Straight must be 5 to 12 cards
-  const uniqueValues = getUniqueSortedValues(cards);
-
-  if (uniqueValues.length !== cards.length) return null; // No duplicate ranks
-  if (uniqueValues.includes(15) || uniqueValues.includes(16) || uniqueValues.includes(17)) return null; // No 2s or Jokers in straight
-
-  for (let i = 0; i < uniqueValues.length - 1; i++) {
-    if (uniqueValues[i] + 1 !== uniqueValues[i + 1]) {
-      return null; // Not consecutive
-    }
-  }
-  return { type: 'Straight', value: uniqueValues[0], length: cards.length };
-}
-
-/**
- * Checks if cards form a Pair Sequence.
- * @param {Array<Card>} cards - Selected cards.
- * @returns {object|null} Pattern object or null.
- */
-function isPairSequence(cards) {
-  if (cards.length < 6 || cards.length % 2 !== 0) return null; // Must be at least 3 pairs (6 cards)
-  const counts = getCardValueCounts(cards);
-  const uniqueValues = getUniqueSortedValues(cards);
-
-  if (uniqueValues.includes(15) || uniqueValues.includes(16) || uniqueValues.includes(17)) return null; // No 2s or Jokers
-
-  if (uniqueValues.length * 2 !== cards.length) return null; // Ensure all are pairs
-  for (const count of counts.values()) {
-    if (count !== 2) return null; // Each unique value must appear exactly twice
-  }
-
-  for (let i = 0; i < uniqueValues.length - 1; i++) {
-    if (uniqueValues[i] + 1 !== uniqueValues[i + 1]) {
-      return null; // Not consecutive pairs
-    }
-  }
-  return { type: 'Pair Sequence', value: uniqueValues[0], length: cards.length };
-}
-
-/**
- * Checks if cards form an Airplane (consecutive triplets).
- * Can be with or without wings (single or pair).
- * @param {Array<Card>} cards - Selected cards.
- * @returns {object|null} Pattern object or null.
- */
-function isAirplane(cards) {
-  const counts = getCardValueCounts(cards);
-  const uniqueValues = getUniqueSortedValues(cards);
-
-  if (uniqueValues.includes(15) || uniqueValues.includes(16) || uniqueValues.includes(17)) return null; // No 2s or Jokers in the main triplets
-
-  const tripletValues = [];
-  const wingCards = []; // Store values of cards that are not part of triplets
-
-  for (const [value, count] of counts.entries()) {
-    if (count === 3) {
-      tripletValues.push(value);
-    } else if (count === 1 || count === 2) {
-      // Collect potential wing cards
-      for (let i = 0; i < count; i++) {
-        wingCards.push(value);
-      }
-    } else {
-      return null; // Invalid count for an airplane (e.g., four-of-a-kind not part of a bomb)
-    }
-  }
-
-  tripletValues.sort((a, b) => a - b);
-
-  // Check for consecutive triplets
-  if (tripletValues.length < 2) return null; // At least two triplets for an airplane
-  for (let i = 0; i < tripletValues.length - 1; i++) {
-    if (tripletValues[i] + 1 !== tripletValues[i + 1]) {
-      return null; // Triplets are not consecutive
-    }
-  }
-
-  const numTriplets = tripletValues.length;
-  const expectedLengthWithoutWings = numTriplets * 3;
-  const expectedLengthWithSingleWings = numTriplets * 4;
-  const expectedLengthWithPairWings = numTriplets * 5;
-
-  if (cards.length === expectedLengthWithoutWings && wingCards.length === 0) {
-    return { type: 'Airplane', value: tripletValues[0], length: cards.length, wings: 'None' };
-  } else if (cards.length === expectedLengthWithSingleWings && wingCards.length === numTriplets) {
-    // Check if wing cards are all singles (each value appears once)
-    const wingCounts = getCardValueCounts(wingCards);
-    for (const count of wingCounts.values()) {
-      if (count > 1) return null; // Wings must be singles
-    }
-    return { type: 'Airplane + Singles', value: tripletValues[0], length: cards.length, wings: 'Singles' };
-  } else if (cards.length === expectedLengthWithPairWings && wingCards.length === numTriplets * 2) {
-    // Check if wing cards are all pairs (each value appears twice)
-    const wingCounts = getCardValueCounts(wingCards);
-    for (const count of wingCounts.values()) {
-      if (count !== 2) return null; // Wings must be pairs
-    }
-    return { type: 'Airplane + Pairs', value: tripletValues[0], length: cards.length, wings: 'Pairs' };
-  }
-
-  return null;
-}
-
-
-/**
- * Attempts to identify the Doudizhu pattern of a given set of cards.
- * @param {Array<Card>} cards - The array of Card objects to analyze.
- * @returns {object|null} An object describing the pattern (type, value, length) or null if no valid pattern.
- */
-function getPattern(cards) {
-  if (!cards || cards.length === 0) return null;
-
-  // Sort cards by value for easier pattern detection
-  cards.sort((a, b) => a.value - b.value);
-
-  console.log("Attempting to get pattern for cards:", cards.map(c => c.toString()));
-
-  // 1. Check for special patterns (Rocket, Bomb) first
-  let pattern = isRocket(cards);
-  if (pattern) {
-    console.log("Pattern identified: Rocket", pattern);
-    return pattern;
-  }
-
-  pattern = isBomb(cards);
-  if (pattern) {
-    console.log("Pattern identified: Bomb", pattern);
-    return pattern;
-  }
-
-  // 2. Check for fixed-size patterns
-  let tempPattern = isSingle(cards);
-  if (tempPattern) {
-    console.log("Pattern identified: Single", tempPattern);
-    return tempPattern;
-  }
-
-  tempPattern = isPair(cards);
-  if (tempPattern) {
-    console.log("Pattern identified: Pair", tempPattern);
-    return tempPattern;
-  }
-
-  tempPattern = isTriplet(cards);
-  if (tempPattern) {
-    console.log("Pattern identified: Triplet", tempPattern);
-    return tempPattern;
-  }
-
-  tempPattern = isTripletWithSingle(cards);
-  if (tempPattern) {
-    console.log("Pattern identified: Triplet + Single", tempPattern);
-    return tempPattern;
-  }
-
-  tempPattern = isTripletWithPair(cards);
-  if (tempPattern) {
-    console.log("Pattern identified: Triplet + Pair", tempPattern);
-    return tempPattern;
-  }
-
-  // 3. Check for variable-size sequence patterns
-  tempPattern = isStraight(cards);
-  if (tempPattern) {
-    console.log("Pattern identified: Straight", tempPattern);
-    return tempPattern;
-  }
-
-  tempPattern = isPairSequence(cards);
-  if (tempPattern) {
-    console.log("Pattern identified: Pair Sequence", tempPattern);
-    return tempPattern;
-  }
-
-  tempPattern = isAirplane(cards); // This handles Airplane with/without wings
-  if (tempPattern) {
-    console.log("Pattern identified: Airplane", tempPattern);
-    return tempPattern;
-  }
-
-  console.log("No valid Doudizhu pattern found for selected cards.");
-  return null; // No valid Doudizhu pattern found
-}
-
-/**
- * Compares a new pattern against the last played pattern to determine if it's a valid move.
- * @param {object|null} newPattern - The pattern object of the cards being played.
- * @param {object|null} lastPattern - The pattern object of the last played cards.
- * @returns {boolean} True if the new pattern can beat the last pattern or is a valid first play, false otherwise.
- */
-function canPlay(newPattern, lastPattern) {
-  console.log("Comparing new pattern:", newPattern, "against last pattern:", lastPattern);
-
-  // If no last pattern, any valid new pattern can be played (first play of a round)
-  if (!lastPattern) {
-    return newPattern !== null;
-  }
-
-  // Rocket beats everything (except another Rocket, but there's only one)
-  if (newPattern.type === 'Rocket') return true;
-
-  // Bomb beats anything except a Rocket or a bigger Bomb
-  if (newPattern.type === 'Bomb') {
-    if (lastPattern.type === 'Rocket') return false; // Rocket beats Bomb
-    if (lastPattern.type === 'Bomb') {
-      return newPattern.value > lastPattern.value; // Higher Bomb beats lower Bomb
-    }
-    return true; // Bomb beats any non-Bomb/non-Rocket pattern
-  }
-
-  // If last pattern was a Rocket or Bomb, and new pattern is not a Rocket/Bomb, new pattern cannot beat it
-  if (lastPattern.type === 'Rocket' || lastPattern.type === 'Bomb') {
-    return false;
-  }
-
-  // For all other patterns, type and length must match, and value must be higher
-  if (newPattern.type === lastPattern.type && newPattern.length === lastPattern.length) {
-    return newPattern.value > lastPattern.value;
-  }
-
-  return false; // Cannot play
-}
-
-// Function to check if any player has won
-function checkDoudizhuWinCondition() {
-  if (doudizhuPlayerHand.length === 0) {
-    doudizhuResultDiv.innerText = 'You played all your cards! You win!';
-    doudizhuGameState = 'game_over';
-    return true;
-  }
-  if (doudizhuOpponent1Hand.length === 0) {
-    doudizhuResultDiv.innerText = 'Opponent 1 played all their cards! Opponent 1 wins!';
-    doudizhuGameState = 'game_over';
-    return true;
-  }
-  if (doudizhuOpponent2Hand.length === 0) {
-    doudizhuResultDiv.innerText = 'Opponent 2 played all their cards! Opponent 2 wins!';
-    doudizhuGameState = 'game_over';
-    return true;
-  }
-  return false;
-}
-
-// Ends the Doudizhu game and shows relevant buttons
-function endDoudizhuGame() {
-  doudizhuGameState = 'game_over';
-  if (doudizhuPlayButton) doudizhuPlayButton.style.display = 'none';
-  if (doudizhuPassButton) doudizhuPassButton.style.display = 'none';
-  if (doudizhuPlayAgainButton) doudizhuPlayAgainButton.style.display = 'inline-block'; // Show play again
-  updateBackButton('Back to Menu', returnToMenu); // Ensure back button is correct
-}
-
-
-// Placeholder for Doudizhu game logic functions
-function playDoudizhuCards() {
-  console.log("PlayDoudizhuCards function called."); // Added debug log
-
-  // Get selected cards from the player's hand DOM elements
-  const selectedElements = doudizhuPlayerHandDiv.querySelectorAll('.card.selected');
-  const selectedCards = Array.from(selectedElements).map(el => el.cardObject);
-
-  console.log("Selected cards (from DOM):", selectedCards.map(c => c.toString()));
-
-  if (selectedCards.length === 0) {
-    doudizhuResultDiv.innerText = 'Please select cards to play.';
-    console.log("No cards selected.");
-    return;
-  }
-
-  const newPattern = getPattern(selectedCards);
-
-  if (!newPattern) {
-    doudizhuResultDiv.innerText = 'Invalid card pattern selected!';
-    console.log("Invalid pattern detected for selected cards.");
-    return;
-  }
-
-  // Determine if the play is valid given the last played pattern
-  // If it's the first play of a round (lastPlayedCards is empty), any valid pattern is allowed.
-  const isFirstPlayInRound = (doudizhuLastPlayedCards.length === 0 || doudizhuLastPlayedPattern === null);
-  console.log("Is first play in round:", isFirstPlayInRound);
-
-  // CRITICAL: Ensure Bomb/Rocket can always be played, regardless of pattern type or length match
-  let canBeat = false;
-  if (newPattern.type === 'Rocket' || newPattern.type === 'Bomb') {
-    // Rocket/Bomb can always be played over non-Bomb/non-Rocket patterns
-    // Or over a smaller Bomb
-    if (!doudizhuLastPlayedPattern || canPlay(newPattern, doudizhuLastPlayedPattern)) {
-      canBeat = true;
-    }
-  } else {
-    // For other patterns, normal canPlay rules apply
-    if (isFirstPlayInRound || canPlay(newPattern, doudizhuLastPlayedPattern)) {
-      canBeat = true;
-    }
-  }
-
-
-  if (canBeat) { // Use the canBeat flag here
-    doudizhuResultDiv.innerText = `You played: ${newPattern.type}`;
-    if (newPattern.type !== 'Rocket' && newPattern.type !== 'Bomb') {
-      doudizhuResultDiv.innerText += ` (Value: ${newPattern.value}).`;
-    } else {
-      doudizhuResultDiv.innerText += `.`;
-    }
-    console.log("Play is valid. Removing cards from hand.");
-
-    // Remove played cards from player's hand
-    doudizhuPlayerHand = doudizhuPlayerHand.filter(card => !selectedCards.includes(card));
-
-    // Update last played cards and pattern
-    doudizhuLastPlayedCards = selectedCards;
-    doudizhuLastPlayedPattern = newPattern;
-    doudizhuConsecutivePasses = 0; // Reset consecutive passes after a successful play
-    doudizhuPlayerWhoLastPlayed = 0; // Player (index 0) played these cards
-
-    // Deselect cards in UI
-    selectedElements.forEach(el => el.classList.remove('selected'));
-
-    // Immediately disable player buttons after a successful play
-    if (doudizhuPlayButton) doudizhuPlayButton.disabled = true;
-    if (doudizhuPassButton) doudizhuPassButton.disabled = true;
-
-    // Check for win condition (player has no cards left)
-    if (checkDoudizhuWinCondition()) {
-      endDoudizhuGame();
-    } else {
-      // Move to next player's turn
-      nextDoudizhuTurn();
-    }
-  } else {
-    doudizhuResultDiv.innerText = `Cannot play that! ${newPattern.type} cannot beat ${doudizhuLastPlayedPattern ? doudizhuLastPlayedPattern.type : 'nothing'}.`;
-    console.log("Play is invalid. New pattern:", newPattern, "Last pattern:", doudizhuLastPlayedPattern);
-    // Deselect cards if play is invalid
-    selectedElements.forEach(el => el.classList.remove('selected'));
-  }
-
+function endBiddingPhase() {
+  doudizhuBiddingButtons.style.display = 'none';
+  doudizhuPlayButton.style.display = 'inline-block';
+  doudizhuPassButton.style.display = 'inline-block';
+
+  // Distribute the 3 landlord cards
+  const landlordCards = currentDeck.deal(3); // These were the initial 3 remaining cards
+  doudizhuHands[doudizhuLandlord].push(...landlordCards);
+  doudizhuHands[doudizhuLandlord].sort((a, b) => a.value - b.value);
+
+  doudizhuResultDiv.innerText += ` Landlord cards added to ${doudizhuLandlord === 0 ? 'Your' : `Opponent ${doudizhuLandlord}'s`} hand.`;
+  doudizhuCurrentTurn = doudizhuLandlord; // Landlord starts the first round
+  doudizhuLastPlayedPattern = null; // Clear any pre-game pattern
+  doudizhuLastPlayedCards = [];
   updateDoudizhuUI();
+}
+
+function playDoudizhuCards() {
+  if (doudizhuSelectedCards.length === 0) {
+    doudizhuResultDiv.innerText = 'Please select cards to play.';
+    return;
+  }
+
+  const playedPattern = analyzeDoudizhuPattern(doudizhuSelectedCards);
+
+  if (!playedPattern.isValid) {
+    doudizhuResultDiv.innerText = 'Invalid card combination. Try again.';
+    doudizhuSelectedCards.forEach(card => {
+      const cardElement = doudizhuPlayerHandDiv.querySelector(`[data-card-suit="${card.suit === null ? 'null' : card.suit}"][data-card-rank="${card.rank}"][data-card-value="${card.value}"]`);
+      if (cardElement) {
+        cardElement.classList.remove('selected');
+      }
+    });
+    doudizhuSelectedCards = [];
+    return;
+  }
+
+  // In multiplayer, send this to the server for validation
+  if (gameMode === 'multiplayerDoudizhu') {
+      sendWebSocketMessage('playCards', {
+          cards: doudizhuSelectedCards.map(card => ({ suit: card.suit, rank: card.rank, value: card.value, color: card.color })),
+          pattern: playedPattern.type,
+          value: playedPattern.value,
+          length: playedPattern.length
+      });
+      doudizhuSelectedCards = []; // Clear selection locally, server will confirm success or error
+      doudizhuPlayButton.style.display = 'none'; // Hide buttons until server responds
+      doudizhuPassButton.style.display = 'none';
+      doudizhuResultDiv.innerText = 'Playing cards... waiting for server.';
+      return;
+  }
+
+  // Single player logic continues below
+  // Check if the played pattern beats the last played pattern
+  if (doudizhuLastPlayedPattern && !beatsDoudizhuPattern(playedPattern, doudizhuLastPlayedPattern)) {
+    doudizhuResultDiv.innerText = `This ${playedPattern.type} does not beat the last played ${doudizhuLastPlayedPattern.type}.`;
+    doudizhuSelectedCards.forEach(card => {
+      const cardElement = doudizhuPlayerHandDiv.querySelector(`[data-card-suit="${card.suit === null ? 'null' : card.suit}"][data-card-rank="${card.rank}"][data-card-value="${card.value}"]`);
+      if (cardElement) {
+        cardElement.classList.remove('selected');
+      }
+    });
+    doudizhuSelectedCards = [];
+    return;
+  }
+
+  // If valid and beats or is the first play of a new round
+  doudizhuLastPlayedPattern = playedPattern;
+  doudizhuLastPlayedCards = [...doudizhuSelectedCards]; // Store a copy
+  doudizhuPasses = 0; // Reset passes after a successful play
+
+  // Remove played cards from player's hand
+  doudizhuHands[0] = doudizhuHands[0].filter(playerCard =>
+    !doudizhuSelectedCards.some(selectedCard =>
+      selectedCard.suit === playerCard.suit && selectedCard.rank === playerCard.rank && selectedCard.value === playerCard.value
+    )
+  );
+  doudizhuSelectedCards = []; // Clear selected cards
+
+  doudizhuResultDiv.innerText = `You played a ${playedPattern.type}! Remaining cards: ${doudizhuHands[0].length}`;
+
+  if (doudizhuHands[0].length === 0) {
+    endDoudizhuGame(0); // Player wins
+    return;
+  }
+
+  moveToNextDoudizhuTurn();
 }
 
 function passDoudizhuTurn() {
-  console.log("PassDoudizhuTurn function called."); // Added debug log
-  doudizhuResultDiv.innerText = 'You passed your turn.';
-  console.log("Player passed turn.");
-  // Clear selected cards if any
-  const selectedElements = doudizhuPlayerHandDiv.querySelectorAll('.card.selected');
-  selectedElements.forEach(el => el.classList.remove('selected'));
+    if (gameMode === 'multiplayerDoudizhu') {
+        sendWebSocketMessage('passTurn', { playerId: myPlayerId });
+        doudizhuSelectedCards = []; // Clear selection locally
+        doudizhuPlayButton.style.display = 'none'; // Hide buttons until server responds
+        doudizhuPassButton.style.display = 'none';
+        doudizhuResultDiv.innerText = 'Passing turn... waiting for server.';
+        return;
+    }
 
-  doudizhuConsecutivePasses++; // Increment pass counter
+  doudizhuPasses++;
+  doudizhuResultDiv.innerText = 'You passed.';
+  doudizhuSelectedCards = []; // Clear selected cards if any
 
-  // Immediately disable player buttons after passing
-  if (doudizhuPlayButton) doudizhuPlayButton.disabled = true;
-  if (doudizhuPassButton) doudizhuPassButton.disabled = true;
+  // If two players pass, the last played pattern is cleared, and the next player (who didn't pass) starts a new round.
+  // For 3 players, if player A plays, then B passes, then C passes, it's A's turn again, and the table is cleared.
+  if (doudizhuPasses >= 2) { // Assuming 3 players total, 2 consecutive passes mean table cleared
+    doudizhuLastPlayedPattern = null;
+    doudizhuLastPlayedCards = [];
+    doudizhuResultDiv.innerText += " Table cleared! New round can begin.";
+  }
 
-  nextDoudizhuTurn();
-  updateDoudizhuUI();
+  moveToNextDoudizhuTurn();
 }
 
-/**
- * Advances the turn to the next player.
- * Handles clearing the board if a new round starts (two consecutive passes or turn returns to last player).
- */
-function nextDoudizhuTurn() {
-  // Determine the next player's index
+// This function is primarily for single-player AI or will be driven by server in multiplayer
+function moveToNextDoudizhuTurn() {
+    if (gameMode === 'multiplayerDoudizhu') {
+        // In multiplayer, the server dictates the turn. This client function is bypassed.
+        return;
+    }
+
   doudizhuCurrentTurn = (doudizhuCurrentTurn + 1) % 3;
 
-  console.log(`Current consecutive passes: ${doudizhuConsecutivePasses}`);
-  console.log(`Player who last played: ${doudizhuPlayerWhoLastPlayed}`);
-  console.log(`Next turn is for player index: ${doudizhuCurrentTurn}`);
+  // If the current turn is the landlord, and the previous two players passed,
+  // then the last played pattern should be cleared.
+  // This is a simplified placeholder.
+  // A proper implementation would track consecutive passes.
+  // For now, if landlord's turn comes back, we assume a new round can start.
+  // This needs to be tied into the actual game flow.
 
-  // Check for round end condition:
-  // A round ends if two players have passed consecutively, or if the turn cycles back to the player who last played.
-  // The condition `doudizhuPlayerWhoLastPlayed !== null && doudizhuCurrentTurn === doudizhuPlayerWhoLastPlayed`
-  // means the turn has come back to the player who made the last successful play,
-  // implying everyone else has passed.
-  if (doudizhuConsecutivePasses >= 2 || (doudizhuPlayerWhoLastPlayed !== null && doudizhuCurrentTurn === doudizhuPlayerWhoLastPlayed)) {
-    doudizhuResultDiv.innerText = `New round can begin! Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn to start.`;
-    doudizhuLastPlayedPattern = null; // Clear the pattern to start a new round
-    doudizhuLastPlayedCards = [];
-    doudizhuConsecutivePasses = 0; // Reset pass counter
-    doudizhuPlayerWhoLastPlayed = null; // Reset
-    console.log("Round cleared. New round starting.");
-  } else {
-    doudizhuResultDiv.innerText = `Landlord: ${doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2'}. Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn!`;
+  // Simplified: If the next player is the landlord, and they are starting a new round, clear the pattern
+  // This is a very rough approximation.
+  if (doudizhuCurrentTurn === doudizhuLandlord && doudizhuLastPlayedPattern !== null) {
+      // This is a placeholder for checking if the round has completed.
+      // A real game would track passes from all players.
+      // For now, if landlord's turn comes back, we assume a new round can start.
+      doudizhuLastPlayedPattern = null;
+      doudizhuLastPlayedCards = [];
+      doudizhuResultDiv.innerText += " New round can begin!";
+      console.log("Landlord's turn, clearing last played pattern for new round.");
   }
 
+  doudizhuResultDiv.innerText = `Landlord: ${doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2'}. Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn!`;
   updateDoudizhuUI();
 
-  // If it's an AI opponent's turn, trigger their move
-  if (doudizhuGameState === 'playing' && doudizhuCurrentTurn !== 0) { // 0 is player
-    // Use a nested setTimeout to ensure AI action and then turn progression
-    setTimeout(() => {
-      doudizhuOpponentTurn(); // AI takes its action
-      // After AI's action, and a short visual delay, then move to the next turn.
-      // This ensures the AI's move message is visible before the turn changes.
-      if (doudizhuGameState === 'playing') { // Only proceed if game is not over
-        setTimeout(nextDoudizhuTurn, 1000); // Delay before next player's turn
-      }
-    }, 1500); // Initial delay before AI starts thinking/acting
+  // If it's an opponent's turn, simulate their play
+  if (doudizhuCurrentTurn !== 0) {
+    setTimeout(simulateOpponentDoudizhuPlay, 1500); // Simulate a delay for AI
   }
 }
 
-// --- Doudizhu Opponent AI Logic ---
-function doudizhuOpponentTurn() {
-  console.log(`Opponent ${doudizhuCurrentTurn} turn.`);
+// This function is for single-player AI only. In multiplayer, the server handles opponent turns.
+function simulateOpponentDoudizhuPlay() {
+  const opponentIndex = doudizhuCurrentTurn;
+  const opponentHand = doudizhuHands[opponentIndex];
+  let playedCards = [];
+  let playedPattern = null;
 
-  // Immediately hide and disable player buttons when AI's turn starts
-  if (doudizhuPlayButton) {
-    doudizhuPlayButton.style.display = 'none';
-    doudizhuPlayButton.disabled = true;
+  // Simple AI: Try to play the smallest valid single card if possible, or pass
+  // This is a highly simplified AI. A real Doudizhu AI is complex.
+
+  // Try to play a single card
+  if (doudizhuLastPlayedPattern === null || doudizhuLastPlayedPattern.type === 'single') {
+    for (let i = 0; i < opponentHand.length; i++) {
+      const cardToPlay = opponentHand[i];
+      const potentialPattern = analyzeDoudizhuPattern([cardToPlay]);
+      if (potentialPattern.isValid && (!doudizhuLastPlayedPattern || beatsDoudizhuPattern(potentialPattern, doudizhuLastPlayedPattern))) {
+        playedCards = [cardToPlay];
+        playedPattern = potentialPattern;
+        break;
+      }
+    }
   }
-  if (doudizhuPassButton) {
-    doudizhuPassButton.style.display = 'none';
-    doudizhuPassButton.disabled = true;
+
+  // If no single card beats, try other patterns (very basic, can be expanded)
+  if (!playedPattern && (doudizhuLastPlayedPattern === null || doudizhuLastPlayedPattern.type === 'pair')) {
+    // Try to play a pair
+    const cardCounts = {};
+    opponentHand.forEach(card => {
+      cardCounts[card.rank] = (cardCounts[card.rank] || 0) + 1;
+    });
+
+    for (const rank in cardCounts) {
+      if (cardCounts[rank] >= 2) {
+        const pairCards = opponentHand.filter(card => card.rank === rank).slice(0, 2);
+        const potentialPattern = analyzeDoudizhuPattern(pairCards);
+        if (potentialPattern.isValid && (!doudizhuLastPlayedPattern || beatsDoudizhuPattern(potentialPattern, doudizhuLastPlayedPattern))) {
+          playedCards = pairCards;
+          playedPattern = potentialPattern;
+          break;
+        }
+      }
+    }
   }
+  // Add more AI logic for other patterns (triples, straights, bombs, etc.)
 
-  let opponentHand;
-  if (doudizhuCurrentTurn === 1) {
-    opponentHand = doudizhuOpponent1Hand;
-  } else if (doudizhuCurrentTurn === 2) {
-    opponentHand = doudizhuOpponent2Hand;
-  }
-
-  // Sort opponent's hand for AI logic (even if not rendered face up)
-  opponentHand.sort((a, b) => a.value - b.value);
-
-  const possiblePlays = findPossiblePlays(opponentHand, doudizhuLastPlayedPattern);
-
-  if (possiblePlays.length > 0) {
-    // For a basic AI, play the first valid pattern found (which will be the "smallest" due to sorting in findPossiblePlays)
-    const play = possiblePlays[0];
-    console.log(`Opponent ${doudizhuCurrentTurn} plays:`, play.cards.map(c => c.toString()));
+  if (playedPattern && playedCards.length > 0) {
+    // Play cards
+    doudizhuLastPlayedPattern = playedPattern;
+    doudizhuLastPlayedCards = [...playedCards];
+    doudizhuPasses = 0;
 
     // Remove played cards from opponent's hand
-    if (doudizhuCurrentTurn === 1) {
-      doudizhuOpponent1Hand = doudizhuOpponent1Hand.filter(card => !play.cards.includes(card));
-    } else if (doudizhuCurrentTurn === 2) {
-      doudizhuOpponent2Hand = doudizhuOpponent2Hand.filter(card => !play.cards.includes(card));
+    doudizhuHands[opponentIndex] = doudizhuHands[opponentIndex].filter(opponentCard =>
+      !playedCards.some(played =>
+        played.suit === opponentCard.suit && played.rank === opponentCard.rank && played.value === opponentCard.value
+      )
+    );
+
+    doudizhuResultDiv.innerText = `Opponent ${opponentIndex} played a ${playedPattern.type}! Remaining cards: ${doudizhuHands[opponentIndex].length}`;
+
+    if (doudizhuHands[opponentIndex].length === 0) {
+      endDoudizhuGame(opponentIndex); // Opponent wins
+      return;
     }
-
-    doudizhuLastPlayedCards = play.cards;
-    doudizhuLastPlayedPattern = play.pattern;
-    doudizhuConsecutivePasses = 0;
-    doudizhuPlayerWhoLastPlayed = doudizhuCurrentTurn;
-
-    doudizhuResultDiv.innerText = `Opponent ${doudizhuCurrentTurn === 1 ? '1' : '2'} played: ${play.pattern.type}`;
-    if (play.pattern.type !== 'Rocket' && play.pattern.type !== 'Bomb') {
-      doudizhuResultDiv.innerText += ` (Value: ${play.pattern.value}).`;
-    } else {
-      doudizhuResultDiv.innerText += `.`;
-    }
-
-
-    // Check for opponent win
-    if (checkDoudizhuWinCondition()) {
-      endDoudizhuGame();
-    }
-
   } else {
-    console.log(`Opponent ${doudizhuCurrentTurn} passes.`);
-    doudizhuResultDiv.innerText = `Opponent ${doudizhuCurrentTurn === 1 ? '1' : '2'} passed.`;
-    doudizhuConsecutivePasses++;
+    // Opponent passes
+    doudizhuPasses++;
+    doudizhuResultDiv.innerText = `Opponent ${opponentIndex} passed.`;
+    if (doudizhuPasses >= 2) { // If two players pass, the table is cleared
+      doudizhuLastPlayedPattern = null;
+      doudizhuLastPlayedCards = [];
+      doudizhuResultDiv.innerText += " Table cleared! New round can begin.";
+    }
   }
-
-  updateDoudizhuUI();
-
-  // IMPORTANT: Removed the direct call to nextDoudizhuTurn() from here.
-  // The turn advancement is now solely managed by the nextDoudizhuTurn function itself,
-  // via the nested setTimeout.
+  moveToNextDoudizhuTurn();
 }
 
-/**
- * Helper function to get all combinations of a given size from an array.
- * Used for finding wings for airplanes.
- * @param {Array<any>} arr - The array to get combinations from.
- * @param {number} size - The size of combinations.
- * @returns {Array<Array<any>>} An array of combinations.
- */
-function getSubsets(arr, size) {
-    const result = [];
-    function backtrack(current, start) {
-        if (current.length === size) {
-            result.push(current);
-            return;
-        }
-        for (let i = start; i < arr.length; i++) {
-            backtrack(current.concat(arr[i]), i + 1);
-        }
-    }
-    backtrack([], 0);
-    return result;
-}
+function analyzeDoudizhuPattern(cards) {
+  // Sort cards by value
+  cards.sort((a, b) => a.value - b.value);
 
-/**
- * Finds all valid Doudizhu patterns that can be played from a given hand,
- * optionally beating a last played pattern.
- * The AI will then pick the "best" one (e.g., smallest valid play, or a bomb if it has one).
- * @param {Array<Card>} hand - The hand to find plays from.
- * @param {object|null} lastPattern - The pattern that needs to be beaten.
- * @returns {Array<{pattern: object, cards: Array<Card>}>} An array of possible plays.
- */
-function findPossiblePlays(hand, lastPattern) {
-  const plays = [];
-  hand.sort((a, b) => a.value - b.value);
-  const counts = getCardValueCounts(hand);
-  const uniqueValues = getUniqueSortedValues(hand); // Values like 3, 4, ..., A, 2, Black Joker, Red Joker
+  const numCards = cards.length;
+  const values = cards.map(c => c.value);
+  const ranks = cards.map(c => c.rank);
 
-  // 1. Always check for Rocket and Bombs first, as they can beat anything (or higher bombs)
-  // Rocket
-  const blackJoker = hand.find(c => c.rank === 'JOKER' && c.color === 'black');
-  const redJoker = hand.find(c => c.rank === 'JOKER' && c.color === 'red');
-  if (blackJoker && redJoker) {
-    const rocketCards = [blackJoker, redJoker];
-    const pattern = isRocket(rocketCards);
-    if (pattern && canPlay(pattern, lastPattern)) {
-      plays.push({ pattern: pattern, cards: rocketCards });
-    }
-  }
+  // Helper to count occurrences of each value
+  const valueCounts = {};
+  values.forEach(v => { valueCounts[v] = (valueCounts[v] || 0) + 1; });
 
-  // Bombs
-  const bombValues = [];
-  for (const [value, count] of counts.entries()) {
-    if (count === 4) {
-      bombValues.push(value);
-    }
-  }
-  bombValues.sort((a, b) => a - b); // Sort bombs by value
-
-  for (const value of bombValues) {
-    const bombCards = hand.filter(card => card.value === value);
-    const pattern = isBomb(bombCards);
-    if (pattern && canPlay(pattern, lastPattern)) {
-      plays.push({ pattern: pattern, cards: bombCards });
-    }
-  }
-
-  // If a Rocket or Bomb can be played, return it immediately for basic AI priority
-  if (plays.some(p => p.pattern.type === 'Rocket')) {
-    return plays.filter(p => p.pattern.type === 'Rocket'); // Return only Rocket
-  }
-  const bombsOnly = plays.filter(p => p.pattern.type === 'Bomb');
-  if (bombsOnly.length > 0 && (lastPattern === null || lastPattern.type !== 'Rocket')) {
-    // If there are bombs and the last pattern wasn't a rocket, prioritize playing the smallest valid bomb.
-    const smallestBeatingBomb = bombsOnly.sort((a, b) => a.pattern.value - b.pattern.value)
-      .find(bomb => canPlay(bomb.pattern, lastPattern));
-    if (smallestBeomb) {
-      return [smallestBeatingBomb];
-    }
-  }
-
-  // If lastPattern is a Rocket or Bomb, and we haven't found a stronger Rocket/Bomb, we can't play anything else.
-  if (lastPattern && (lastPattern.type === 'Rocket' || lastPattern.type === 'Bomb')) {
-    return []; // Cannot play anything else
-  }
-
-  // 2. Generate other patterns (Singles, Pairs, Triplets, etc.)
-  // Iterate through unique values for singles, pairs, triplets, etc.
-  for (const val of uniqueValues) {
-    const cardsOfValue = hand.filter(card => card.value === val);
-    const count = cardsOfValue.length;
-
-    // Single
-    if (count >= 1) {
-      const pattern = isSingle([cardsOfValue[0]]);
-      if (pattern && canPlay(pattern, lastPattern)) {
-        plays.push({ pattern: pattern, cards: [cardsOfValue[0]] });
-      }
-    }
-    // Pair
-    if (count >= 2) {
-      const pattern = isPair(cardsOfValue.slice(0, 2));
-      if (pattern && canPlay(pattern, lastPattern)) {
-        plays.push({ pattern: pattern, cards: cardsOfValue.slice(0, 2) });
-      }
-    }
-    // Triplet
-    if (count >= 3) {
-      const pattern = isTriplet(cardsOfValue.slice(0, 3));
-      if (pattern && canPlay(pattern, lastPattern)) {
-        plays.push({ pattern: pattern, cards: cardsOfValue.slice(0, 3) });
-      }
-    }
-  }
-
-  // Triplet + Single / Triplet + Pair (more complex, requires finding a triplet and then suitable wing)
-  const tripletValuesInHand = uniqueValues.filter(val => counts.get(val) >= 3);
-  for (const tripletVal of tripletValuesInHand) {
-    const tripletCards = hand.filter(c => c.value === tripletVal);
-    const remainingCards = hand.filter(c => c.value !== tripletVal); // Cards not part of this triplet
-
-    // Triplet + Single
-    if (remainingCards.length >= 1) {
-      // Find all possible single wings
-      const potentialSingleWings = remainingCards.filter(c => counts.get(c.value) >= 1); // Any card can be a single wing
-      for (const singleCard of potentialSingleWings) {
-        const combinedCards = tripletCards.concat(singleCard);
-        const pattern = isTripletWithSingle(combinedCards);
-        if (pattern && canPlay(pattern, lastPattern)) {
-          plays.push({ pattern: pattern, cards: combinedCards });
-        }
-      }
-    }
-
-    // Triplet + Pair
-    const remainingCounts = getCardValueCounts(remainingCards);
-    const pairValuesInRemaining = Array.from(remainingCounts.keys()).filter(val => remainingCounts.get(val) >= 2);
-    if (pairValuesInRemaining.length >= 1) {
-      for (const pairVal of pairValuesInRemaining) {
-        const pairCards = remainingCards.filter(c => c.value === pairVal).slice(0, 2);
-        const combinedCards = tripletCards.concat(pairCards);
-        const pattern = isTripletWithPair(combinedCards);
-        if (pattern && canPlay(pattern, lastPattern)) {
-          plays.push({ pattern: pattern, cards: combinedCards });
-        }
-      }
-    }
-  }
-
-
-  // Straights
-  // Iterate through possible starting values for straights (3 to A, excluding 2s and Jokers)
-  for (let startVal = 3; startVal <= 14; startVal++) { // 3 to Ace (value 14)
-    for (let length = 5; length <= 12; length++) { // Straight length 5 to 12
-      const potentialStraightCards = [];
-      let hasAllCards = true;
-      for (let i = 0; i < length; i++) {
-        const currentVal = startVal + i;
-        // Check if value is within bounds (3-Ace) and if we have at least one card of that value
-        if (currentVal > 14 || counts.get(currentVal) === undefined || counts.get(currentVal) === 0) {
-          hasAllCards = false;
-          break;
-        }
-        // Take one card of the current value
-        potentialStraightCards.push(hand.find(c => c.value === currentVal));
-      }
-      if (hasAllCards && potentialStraightCards.length === length) { // Ensure correct length
-        const pattern = isStraight(potentialStraightCards);
-        if (pattern && canPlay(pattern, lastPattern)) {
-          plays.push({ pattern: pattern, cards: potentialStraightCards });
-        }
-      }
-    }
-  }
-
-  // Pair Sequences
-  for (let startVal = 3; startVal <= 14; startVal++) { // 3 to Ace
-    for (let length = 3; length <= 10; length++) { // 3 pairs (6 cards) to 10 pairs (20 cards)
-      const potentialPairSequenceCards = [];
-      let hasAllPairs = true;
-      for (let i = 0; i < length; i++) {
-        const currentVal = startVal + i;
-        // Check if value is within bounds (3-Ace) and if we have at least two cards of that value
-        if (currentVal > 14 || counts.get(currentVal) === undefined || counts.get(currentVal) < 2) {
-          hasAllPairs = false;
-          break;
-        }
-        // Take two cards of the current value
-        potentialPairSequenceCards.push(...hand.filter(c => c.value === currentVal).slice(0, 2));
-      }
-      if (hasAllPairs && potentialPairSequenceCards.length === length * 2) { // Ensure correct length
-        const pattern = isPairSequence(potentialPairSequenceCards);
-        if (pattern && canPlay(pattern, lastPattern)) {
-          plays.push({ pattern: pattern, cards: potentialPairSequenceCards });
-        }
-      }
-    }
-  }
-
-  // Airplanes (consecutive triplets)
-  // Find all triplets in hand first
-  const allTripletsInHand = [];
-  for (const val of uniqueValues) {
-    if (counts.get(val) >= 3 && val <= 14) { // Exclude 2s and Jokers for main triplets
-      allTripletsInHand.push(hand.filter(c => c.value === val).slice(0, 3));
-    }
-  }
-
-  if (allTripletsInHand.length >= 2) {
-    allTripletsInHand.sort((a, b) => a[0].value - b[0].value); // Sort by value of the triplet
-
-    // Iterate to find consecutive triplets for the airplane body
-    for (let i = 0; i < allTripletsInHand.length - 1; i++) {
-      const firstTriplet = allTripletsInHand[i];
-      const secondTriplet = allTripletsInHand[i + 1];
-
-      if (firstTriplet[0].value + 1 === secondTriplet[0].value) {
-        // Found a consecutive pair of triplets (base for 2-triplet airplane)
-        const baseAirplaneCards = firstTriplet.concat(secondTriplet);
-
-        // Try without wings (e.g., 6 cards for 2 triplets)
-        let pattern = isAirplane(baseAirplaneCards);
-        if (pattern && canPlay(pattern, lastPattern)) {
-          plays.push({ pattern: pattern, cards: baseAirplaneCards });
-        }
-
-        // Collect remaining cards for potential wings
-        const remainingCardsForWings = hand.filter(c => !baseAirplaneCards.includes(c));
-
-        // Try with singles as wings (need 2 singles for 2 triplets)
-        if (remainingCardsForWings.length >= 2) {
-          const singleCardsForWings = remainingCardsForWings.filter(c => counts.get(c.value) >= 1); // Any card can be a single wing
-          const singleCombinations = getSubsets(singleCardsForWings, 2); // Get all combinations of 2 singles
-          for (const singles of singleCombinations) {
-            const combinedCards = baseAirplaneCards.concat(singles);
-            pattern = isAirplane(combinedCards);
-            if (pattern && canPlay(pattern, lastPattern)) {
-              plays.push({ pattern: pattern, cards: combinedCards });
-            }
-          }
-        }
-
-        // Try with pairs as wings (need 2 pairs for 2 triplets)
-        const pairCardsForWings = [];
-        const tempCountsForWings = getCardValueCounts(remainingCardsForWings);
-        for (const val of Array.from(tempCountsForWings.keys())) {
-          if (tempCountsForWings.get(val) >= 2) {
-            pairCardsForWings.push(remainingCardsForWings.filter(c => c.value === val).slice(0, 2));
-          }
-        }
-        if (pairCardsForWings.length >= 2) {
-          const pairCombinations = getSubsets(pairCardsForWings, 2); // Get all combinations of 2 pairs
-          for (const pairs of pairCombinations) {
-            const combinedCards = baseAirplaneCards.concat(...pairs); // Flatten pairs array
-            pattern = isAirplane(combinedCards);
-            if (pattern && canPlay(pattern, lastPattern)) {
-              plays.push({ pattern: pattern, cards: combinedCards });
-            }
-          }
-        }
-      }
-    }
-    // TODO: Extend for airplanes with more than 2 consecutive triplets (e.g., 3-triplet airplane)
-    // This would require more complex iteration over allTripletsInHand to find longer sequences.
-  }
-
-
-  // Sort all found valid plays for AI decision making:
-  // Prioritize by pattern type (Rocket > Bomb > Airplane > Pair Sequence > Straight > Triplet+Pair > Triplet+Single > Triplet > Pair > Single)
-  // Then by length (shorter first for sequences if types are same)
-  // Then by value (lowest value first)
-  plays.sort((a, b) => {
-    const typeOrder = {
-      'Rocket': 10,
-      'Bomb': 9,
-      'Airplane': 8,
-      'Airplane + Singles': 7,
-      'Airplane + Pairs': 6,
-      'Pair Sequence': 5,
-      'Straight': 4,
-      'Triplet + Pair': 3,
-      'Triplet + Single': 2,
-      'Triplet': 1,
-      'Pair': 0.5, // Slightly lower than triplet
-      'Single': 0
-    };
-
-    // Primary sort: by pattern type (highest priority first)
-    if (typeOrder[a.pattern.type] !== typeOrder[b.pattern.type]) {
-      return typeOrder[b.pattern.type] - typeOrder[a.pattern.type]; // Descending order for type priority
-    }
-
-    // Secondary sort: by length (ascending for same type)
-    if (a.pattern.length !== b.pattern.length) {
-      return a.pattern.length - b.pattern.length;
-    }
-
-    // Tertiary sort: by value (ascending for same type and length)
-    return a.pattern.value - b.pattern.value;
+  const distinctValues = Object.keys(valueCounts).map(Number);
+  const distinctRanks = Object.keys(valueCounts); // Use ranks for sequence checking without Jokers
+  distinctRanks.sort((a, b) => {
+    // Custom sort for ranks to handle 2 and Jokers correctly in sequences
+    const rankOrder = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2', 'JOKER'];
+    return rankOrder.indexOf(a) - rankOrder.indexOf(b);
   });
 
-  return plays;
+
+  // Single
+  if (numCards === 1) {
+    return { isValid: true, type: 'single', value: values[0], length: 1, cards: cards };
+  }
+
+  // Pair
+  if (numCards === 2 && values[0] === values[1]) {
+    return { isValid: true, type: 'pair', value: values[0], length: 1, cards: cards };
+  }
+
+  // Triple (with or without single/pair)
+  if (numCards >= 3) {
+    // Check for a triple base
+    for (let i = 0; i < distinctValues.length; i++) {
+      const val = distinctValues[i];
+      if (valueCounts[val] === 3) {
+        if (numCards === 3) { // Triple
+          return { isValid: true, type: 'triple', value: val, length: 1, cards: cards };
+        } else if (numCards === 4) { // Triple with single (e.g., 555-8)
+          // Ensure remaining card is a single
+          const remainingCards = cards.filter(c => c.value !== val);
+          if (remainingCards.length === 1 && valueCounts[remainingCards[0].value] === 1) {
+            return { isValid: true, type: 'triple-single', value: val, length: 1, cards: cards };
+          }
+        } else if (numCards === 5) { // Triple with pair (e.g., 555-88)
+          // Ensure remaining cards form a pair
+          const remainingCards = cards.filter(c => c.value !== val);
+          if (remainingCards.length === 2 && remainingCards[0].value === remainingCards[1].value) {
+            return { isValid: true, type: 'triple-pair', value: val, length: 1, cards: cards };
+          }
+        }
+      }
+    }
+  }
+
+  // Straight (Shunzi): 5 or more consecutive cards, no pairs/triples/jokers
+  if (numCards >= 5 && numCards <= 12 && distinctValues.length === numCards) {
+    let isStraight = true;
+    for (let i = 0; i < distinctValues.length - 1; i++) {
+      // Doudizhu straight cannot contain 2 or Jokers
+      if (distinctValues[i] === 15 || distinctValues[i] === 16 || distinctValues[i] === 17) {
+        isStraight = false;
+        break;
+      }
+      if (distinctValues[i + 1] !== distinctValues[i] + 1) {
+        isStraight = false;
+        break;
+      }
+    }
+    if (isStraight) {
+      return { isValid: true, type: 'straight', value: values[0], length: numCards, cards: cards };
+    }
+  }
+
+  // Pair Straight (Lian Dui): 3 or more consecutive pairs, no 2s or Jokers
+  if (numCards >= 6 && numCards % 2 === 0 && distinctValues.length === numCards / 2) {
+    let isPairStraight = true;
+    for (const val of distinctValues) {
+      if (valueCounts[val] !== 2) {
+        isPairStraight = false;
+        break;
+      }
+      // Doudizhu pair straight cannot contain 2 or Jokers
+      if (val === 15 || val === 16 || val === 17) {
+        isPairStraight = false;
+        break;
+      }
+    }
+    if (isPairStraight) {
+      for (let i = 0; i < distinctValues.length - 1; i++) {
+        if (distinctValues[i + 1] !== distinctValues[i] + 1) {
+          isPairStraight = false;
+          break;
+        }
+      }
+    }
+    if (isPairStraight) {
+      return { isValid: true, type: 'pair-straight', value: values[0], length: numCards / 2, cards: cards };
+    }
+  }
+
+  // Triple Straight (Fei Ji/Airplane): 2 or more consecutive triples
+  // With or without attached singles/pairs
+  // Example: 333444, 333444-5-6, 333444-55-66
+  if (numCards >= 6 && numCards % 3 === 0) { // Basic triple straight (no wings)
+    let isTripleStraight = true;
+    const tripleBases = [];
+    for (const val of distinctValues) {
+      if (valueCounts[val] !== 3) {
+        isTripleStraight = false;
+        break;
+      }
+      if (val === 15 || val === 16 || val === 17) { // Cannot contain 2 or Jokers
+        isTripleStraight = false;
+        break;
+      }
+      tripleBases.push(val);
+    }
+    if (isTripleStraight) {
+      for (let i = 0; i < tripleBases.length - 1; i++) {
+        if (tripleBases[i + 1] !== tripleBases[i] + 1) {
+          isTripleStraight = false;
+          break;
+        }
+      }
+    }
+    if (isTripleStraight) {
+      return { isValid: true, type: 'triple-straight', value: tripleBases[0], length: tripleBases.length, cards: cards };
+    }
+  }
+
+  // Bomb: Four of a kind
+  if (numCards === 4 && distinctValues.length === 1 && valueCounts[values[0]] === 4) {
+    return { isValid: true, type: 'bomb', value: values[0], length: 1, cards: cards };
+  }
+
+  // Rocket: Two Jokers (Big and Small)
+  if (numCards === 2 &&
+      cards.some(c => c.rank === 'JOKER' && c.color === 'black') &&
+      cards.some(c => c.rank === 'JOKER' && c.color === 'red')) {
+    return { isValid: true, type: 'rocket', value: 100, length: 1, cards: cards }; // Assign a very high value
+  }
+
+  // Four with two singles (e.g., 7777-3-5)
+  if (numCards === 6) {
+      const fourOfAKindValue = distinctValues.find(v => valueCounts[v] === 4);
+      if (fourOfAKindValue) {
+          const remainingCards = cards.filter(card => card.value !== fourOfAKindValue);
+          if (remainingCards.length === 2 && remainingCards[0].value !== remainingCards[1].value) {
+              return { isValid: true, type: 'four-two-singles', value: fourOfAKindValue, length: 1, cards: cards };
+          }
+      }
+  }
+
+  // Four with two pairs (e.g., 7777-33-55)
+  if (numCards === 8) {
+      const fourOfAKindValue = distinctValues.find(v => valueCounts[v] === 4);
+      if (fourOfAKindValue) {
+          const remainingCards = cards.filter(card => card.value !== fourOfAKindValue);
+          const remainingCounts = {};
+          remainingCards.forEach(c => { remainingCounts[c.value] = (remainingCounts[c.value] || 0) + 1; });
+          const remainingDistinctValues = Object.keys(remainingCounts).map(Number);
+
+          if (remainingCards.length === 4 && remainingDistinctValues.length === 2 &&
+              remainingCounts[remainingDistinctValues[0]] === 2 && remainingCounts[remainingDistinctValues[1]] === 2) {
+              return { isValid: true, type: 'four-two-pairs', value: fourOfAKindValue, length: 1, cards: cards };
+          }
+      }
+  }
+
+
+  // If no pattern matches
+  return { isValid: false, type: 'unknown', cards: cards };
+}
+
+function beatsDoudizhuPattern(newPattern, lastPattern) {
+  // Rocket beats everything (except another rocket, which is a tie - not handled by this game's rules)
+  if (newPattern.type === 'rocket') return true;
+  // Bombs beat everything except rockets and stronger bombs
+  if (newPattern.type === 'bomb' && lastPattern.type !== 'rocket') {
+    if (lastPattern.type === 'bomb') {
+      return newPattern.value > lastPattern.value;
+    }
+    return true; // Bomb beats any non-bomb, non-rocket pattern
+  }
+
+  // If the types don't match, and it's not a bomb or rocket, it's an invalid play
+  if (newPattern.type !== lastPattern.type) {
+    return false;
+  }
+
+  // Compare patterns of the same type
+  switch (newPattern.type) {
+    case 'single':
+    case 'pair':
+    case 'triple':
+    case 'triple-single':
+    case 'triple-pair':
+    case 'four-two-singles':
+    case 'four-two-pairs':
+      return newPattern.value > lastPattern.value; // Higher value wins
+    case 'straight':
+    case 'pair-straight':
+    case 'triple-straight':
+      // Must be same length and higher starting value
+      return newPattern.length === lastPattern.length && newPattern.value > lastPattern.value;
+    default:
+      return false; // Should not happen if patterns are correctly identified
+  }
 }
 
 
-// Initial setup on page load (ensures menu is shown)
-// No DOMContentLoaded listener is needed here because the inline onclicks
-// in HTML will call the functions directly, and the script is deferred.
-returnToMenu(); // Ensure menu screen is visible initially
+function endDoudizhuGame(winnerIndex) {
+  doudizhuPlayButton.style.display = 'none';
+  doudizhuPassButton.style.display = 'none';
+  doudizhuBiddingButtons.style.display = 'none'; // Ensure bidding buttons are hidden
+
+  let winnerText = '';
+  // In multiplayer, winnerIndex is the server's player index. We need to map it to player names.
+  if (gameMode === 'multiplayerDoudizhu' && currentLobby && currentLobby.players) {
+      const winnerPlayer = currentLobby.players[winnerIndex];
+      winnerText = `${winnerPlayer.name} ${winnerIndex === doudizhuLandlord ? '(Landlord)' : '(Farmer)'} Wins!`;
+  } else { // Single player logic
+      if (winnerIndex === 0) {
+        winnerText = doudizhuLandlord === 0 ? 'You (Landlord) Win!' : 'You (Farmer) Win!';
+      } else if (winnerIndex === doudizhuLandlord) {
+        winnerText = `Opponent ${winnerIndex} (Landlord) Wins!`;
+      } else {
+        winnerText = `Opponent ${winnerIndex} (Farmer) Wins!`;
+      }
+  }
+  doudizhuResultDiv.innerText = `Game Over! ${winnerText}`;
+}
+
+
+// --- Multiplayer Lobby & Game Logic (WebSocket based) ---
+
+// Displays the multiplayer lobby screen
+function showMultiplayerLobby() {
+  gameMode = 'multiplayerLobby';
+  showScreen('multiplayer-lobby-screen');
+  multiplayerLobbyResultDiv.innerText = '';
+  lobbyCodeDisplay.innerText = '';
+  lobbyRoomArea.style.display = 'none';
+  connectWebSocket(); // Establish WebSocket connection
+}
+
+// Creates a new game lobby
+function createLobby() {
+  myPlayerName = playerNameInput.value.trim();
+  if (!myPlayerName) {
+    multiplayerLobbyResultDiv.innerText = 'Please enter your name to create a lobby.';
+    return;
+  }
+  // Ensure we have a player ID
+  if (!myPlayerId) {
+    myPlayerId = crypto.randomUUID();
+    localStorage.setItem('doudizhuMyPlayerId', myPlayerId);
+  }
+  sendWebSocketMessage('createLobby', { playerName: myPlayerName });
+  multiplayerLobbyResultDiv.innerText = 'Creating lobby...';
+}
+
+// Joins an existing game lobby
+function joinLobby() {
+  const code = joinCodeInput.value.trim().toUpperCase();
+  myPlayerName = joinPlayerNameInput.value.trim();
+
+  if (!code || !myPlayerName) {
+    multiplayerLobbyResultDiv.innerText = 'Please enter lobby code and your name.';
+    return;
+  }
+  // Ensure we have a player ID
+  if (!myPlayerId) {
+    myPlayerId = crypto.randomUUID();
+    localStorage.setItem('doudizhuMyPlayerId', myPlayerId);
+  }
+  sendWebSocketMessage('joinLobby', { lobbyCode: code, playerName: myPlayerName });
+  multiplayerLobbyResultDiv.innerText = `Joining lobby ${code}...`;
+}
+
+// Updates the lobby UI (player list, start button visibility)
+function updateLobbyUI() {
+  if (currentLobby) {
+    currentLobbyCodeSpan.innerText = currentLobby.code;
+    playersList.innerHTML = '';
+    currentLobby.players.forEach(player => {
+      const listItem = document.createElement('li');
+      listItem.innerText = `${player.name} ${player.isHost ? '(Host)' : ''} ${player.id === myPlayerId ? '(You)' : ''}`;
+      playersList.appendChild(listItem);
+    });
+
+    // Only host can start game, and only if 3 players are in lobby
+    if (currentLobby.players.length === 3 && currentLobby.hostId === myPlayerId && !currentLobby.gameStarted) {
+      startMultiplayerDoudizhuButton.style.display = 'inline-block';
+    } else {
+      startMultiplayerDoudizhuButton.style.display = 'none';
+    }
+    lobbyRoomArea.style.display = 'block'; // Ensure room is visible
+    lobbyCodeDisplay.innerText = `Lobby Code: ${currentLobby.code}`;
+  } else {
+    currentLobbyCodeSpan.innerText = 'N/A';
+    playersList.innerHTML = '';
+    startMultiplayerDoudizhuButton.style.display = 'none';
+    lobbyRoomArea.style.display = 'none'; // Hide room if no lobby
+    lobbyCodeDisplay.innerText = '';
+  }
+  // Clear inputs after action
+  // playerNameInput.value = ''; // Keep for convenience if user wants to rejoin
+  // joinCodeInput.value = '';
+  // joinPlayerNameInput.value = '';
+}
+
+// Leaves the current lobby
+function leaveLobby() {
+  if (currentLobby) {
+    sendWebSocketMessage('leaveLobby', { lobbyCode: currentLobby.code });
+    currentLobby = null; // Clear local lobby state immediately
+    // myPlayerId = null; // Keep player ID for potential reconnection in future
+    multiplayerLobbyResultDiv.innerText = 'You left the lobby.';
+    updateLobbyUI(); // Update UI to reflect leaving
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+        websocket.close(); // Close connection after leaving lobby
+    }
+  }
+}
+
+// Host starts the Doudizhu game for multiplayer
+function startMultiplayerDoudizhu() {
+  if (!currentLobby || currentLobby.players.length !== 3 || currentLobby.hostId !== myPlayerId) {
+    multiplayerLobbyResultDiv.innerText = 'You must be the host with 3 players to start the game.';
+    return;
+  }
+  sendWebSocketMessage('startGame', { lobbyCode: currentLobby.code });
+  multiplayerLobbyResultDiv.innerText = 'Sending start game request...';
+}
+
+
+// --- General UI Functions ---
+
+function returnToMenu() {
+  showScreen('menu-screen');
+  // Clean up game-specific UI elements
+  playTurnButton.style.display = 'none';
+  blackjackHitButton.style.display = 'none';
+  blackjackStandButton.style.display = 'none';
+  doudizhuPlayButton.style.display = 'none';
+  doudizhuPassButton.style.display = 'none';
+  doudizhuBiddingButtons.style.display = 'none';
+
+  // For Deck Viewer, hide the specific viewer div
+  const deckViewerDiv = document.getElementById('deck-viewer');
+  if (deckViewerDiv) {
+    deckViewerDiv.style.display = 'none';
+    deckViewerDiv.innerHTML = ''; // Clear cards
+  }
+
+  // Restore general hand display elements if they were hidden
+  enemyHandDiv.style.display = 'flex';
+  playerHandDiv.style.display = 'flex';
+  document.getElementById('enemy-player-info').style.display = 'block';
+  document.getElementById('player-player-info').style.display = 'block';
+
+  // Clear multiplayer lobby state and UI related to game modes
+  currentLobby = null; // Clear local lobby reference
+  myPlayerIndex = -1; // Reset player index
+  // myPlayerId is persistent
+  // myPlayerName is persistent
+
+  updateLobbyUI(); // Reset lobby UI elements
+  multiplayerLobbyResultDiv.innerText = ''; // Clear lobby messages
+  // Keep input fields for convenience
+  // playerNameInput.value = '';
+  // joinCodeInput.value = '';
+  // joinPlayerNameInput.value = '';
+
+  // Close WebSocket connection if it's open and not already closed by leaving lobby
+  if (websocket && websocket.readyState === WebSocket.OPEN) {
+      websocket.close();
+  }
+}
+
+// Initial setup on page load (optional, but ensures menu is shown)
+document.addEventListener('DOMContentLoaded', () => {
+  // Generate a persistent player ID for this browser, if not already present
+  // This allows the "same player" to rejoin a lobby in the same browser session.
+  myPlayerId = localStorage.getItem('doudizhuMyPlayerId') || crypto.randomUUID();
+  localStorage.setItem('doudizhuMyPlayerId', myPlayerId);
+
+  // Set default player name if previously entered
+  const storedPlayerName = localStorage.getItem('doudizhuMyPlayerName');
+  if (storedPlayerName) {
+      playerNameInput.value = storedPlayerName;
+      joinPlayerNameInput.value = storedPlayerName;
+      myPlayerName = storedPlayerName;
+  }
+
+  // Add event listeners for Doudizhu buttons (single-player mode uses these directly)
+  doudizhuPlayButton.onclick = playDoudizhuCards;
+  doudizhuPassButton.onclick = passDoudizhuTurn;
+  doudizhuCallLandlordButton.onclick = () => handleBidding(true);
+  doudizhuDontCallButton.onclick = () => handleBidding(false);
+
+  showScreen('menu-screen');
+});
