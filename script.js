@@ -246,10 +246,10 @@ function updateBackButton(text, handler) {
   // We need to ensure the correct back button is updated based on the active screen.
   // The HTML has two back buttons: one for game-screen, one for doudizhu-game-screen.
   // We'll update the one that's currently visible.
-  if (gameScreen.style.display === 'block' && backButton) {
+  if (gameScreen && gameScreen.style.display === 'block' && backButton) {
     backButton.innerText = text;
     backButton.onclick = handler;
-  } else if (doudizhuGameScreen.style.display === 'block' && doudizhuBackButton) {
+  } else if (doudizhuGameScreen && doudizhuGameScreen.style.display === 'block' && doudizhuBackButton) {
     doudizhuBackButton.innerText = text;
     doudizhuBackButton.onclick = handler;
   }
@@ -264,7 +264,7 @@ function updateCardCounts() {
 // Helper to toggle visibility of player info divs (primarily for War/Blackjack)
 function togglePlayerInfo(show) {
   if (playerInfoDiv) playerInfoDiv.style.display = show ? 'flex' : 'none';
-  if (enemyInfoDiv) enemyInfoDiv.style.display = show ? 'flex' : 'none';
+  if (enemyInfoDiv) enemyInfoDiv.display = show ? 'flex' : 'none';
 }
 
 
@@ -738,7 +738,7 @@ function returnToFullDeckView() {
 // Add arrow key navigation for focused card in Deck Viewer
 document.addEventListener('keydown', (event) => {
   // Only respond to keydown if the Deck Viewer screen is active
-  if (gameScreen.style.display === 'block' && gameTitle.innerText === 'Deck Viewer') {
+  if (gameScreen && gameScreen.style.display === 'block' && gameTitle.innerText === 'Deck Viewer') {
     if (focusedCardIndex !== -1 && currentDeck && currentDeck.length > 0) {
       if (event.key === 'ArrowLeft' && focusedCardIndex > 0) {
         focusedCardIndex--;
@@ -753,16 +753,16 @@ document.addEventListener('keydown', (event) => {
 
 function returnToMenu() {
   document.getElementById('menu-screen').style.display = 'block';
-  gameScreen.style.display = 'none'; // Hide generic game screen
-  doudizhuGameScreen.style.display = 'none'; // Hide Doudizhu game screen
+  if (gameScreen) gameScreen.style.display = 'none'; // Hide generic game screen
+  if (doudizhuGameScreen) doudizhuGameScreen.style.display = 'none'; // Hide Doudizhu game screen
 
   // Reset game state for a clean return to menu for all games
   playerDeck = [];
   enemyDeck = [];
   currentDeck = null;
   focusedCardIndex = -1;
-  playTurnButton.disabled = false;
-  playTurnButton.style.display = 'none';
+  if (playTurnButton) playTurnButton.disabled = false;
+  if (playTurnButton) playTurnButton.style.display = 'none';
 
   // Hide specific Blackjack buttons
   if (hitButton) hitButton.style.display = 'none';
@@ -795,20 +795,20 @@ function returnToMenu() {
   togglePlayerInfo(false);
 
   // Clear hands display for all games
-  playerHandDiv.innerHTML = '';
-  enemyHandDiv.innerHTML = '';
-  doudizhuPlayerHandDiv.innerHTML = '';
-  doudizhuOpponent1HandDiv.innerHTML = '';
-  doudizhuOpponent2HandDiv.innerHTML = '';
-  doudizhuPlayedCardsDiv.innerHTML = '';
+  if (playerHandDiv) playerHandDiv.innerHTML = '';
+  if (enemyHandDiv) enemyHandDiv.innerHTML = '';
+  if (doudizhuPlayerHandDiv) doudizhuPlayerHandDiv.innerHTML = '';
+  if (doudizhuOpponent1HandDiv) doudizhuOpponent1HandDiv.innerHTML = '';
+  if (doudizhuOpponent2HandDiv) doudizhuOpponent2HandDiv.innerHTML = '';
+  if (doudizhuPlayedCardsDiv) doudizhuPlayedCardsDiv.innerHTML = '';
 
 
   // Reset justify-content for hands (used by War/Blackjack/Deck Viewer)
-  playerHandDiv.style.justifyContent = 'flex-start';
-  enemyHandDiv.style.justifyContent = 'flex-start';
+  if (playerHandDiv) playerHandDiv.style.justifyContent = 'flex-start';
+  if (enemyHandDiv) enemyHandDiv.style.justifyContent = 'flex-start';
 
-  resultDiv.innerText = ''; // Clear result text for generic screen
-  doudizhuResultDiv.innerText = ''; // Clear result text for Doudizhu screen
+  if (resultDiv) resultDiv.innerText = ''; // Clear result text for generic screen
+  if (doudizhuResultDiv) doudizhuResultDiv.innerText = ''; // Clear result text for Doudizhu screen
 
   // Hide Doudizhu specific buttons and labels
   if (doudizhuPlayButton) doudizhuPlayButton.style.display = 'none';
@@ -826,22 +826,26 @@ function returnToMenu() {
 function showScreen(screenId, title) {
   // Hide all main game screens first
   document.getElementById('menu-screen').style.display = 'none';
-  gameScreen.style.display = 'none'; // Generic game screen for War/Blackjack/Deck Viewer
-  doudizhuGameScreen.style.display = 'none'; // New Doudizhu screen
+  if (gameScreen) gameScreen.style.display = 'none'; // Generic game screen for War/Blackjack/Deck Viewer
+  if (doudizhuGameScreen) doudizhuGameScreen.style.display = 'none'; // New Doudizhu screen
 
   // Show the requested screen
-  document.getElementById(screenId).style.display = 'block';
+  const targetScreen = document.getElementById(screenId);
+  if (targetScreen) {
+    targetScreen.style.display = 'block';
+  }
+
 
   // Set game title based on the screen ID
-  if (screenId === 'game-screen') {
+  if (screenId === 'game-screen' && gameTitle) {
     gameTitle.innerText = title;
-  } else if (screenId === 'doudizhu-game-screen') {
+  } else if (screenId === 'doudizhu-game-screen' && doudizhuGameTitle) {
     doudizhuGameTitle.innerText = title;
   }
 
   // Reset common game controls (for War/Blackjack)
-  playTurnButton.disabled = false;
-  playTurnButton.style.display = 'none'; // Hide by default
+  if (playTurnButton) playTurnButton.disabled = false;
+  if (playTurnButton) playTurnButton.style.display = 'none'; // Hide by default
 
   // Hide specific Blackjack buttons
   if (hitButton) hitButton.style.display = 'none';
@@ -851,11 +855,10 @@ function showScreen(screenId, title) {
   togglePlayerInfo(false);
 
   // Reset justify-content for hands (used by War/Blackjack/Deck Viewer)
-  playerHandDiv.style.justifyContent = 'flex-start';
-  enemyHandDiv.style.justifyContent = 'flex-start';
+  if (playerHandDiv) playerHandDiv.style.justifyContent = 'flex-start';
+  if (enemyHandDiv) enemyHandDiv.style.justifyContent = 'flex-start';
 
-  // Clear result text for generic screen
-  resultDiv.innerText = '';
+  if (resultDiv) resultDiv.innerText = ''; // Clear result text for generic screen
 
   // Default back button behavior - will show the appropriate back button
   updateBackButton('Back to Menu', returnToMenu);
@@ -866,6 +869,7 @@ function showScreen(screenId, title) {
 // Renders a Doudizhu hand
 function renderDoudizhuHand(containerId, cards, clickable = false, showFaceUp = true) {
   const container = document.getElementById(containerId);
+  if (!container) return; // Add null check for container
   container.innerHTML = '';
   if (!cards || cards.length === 0) return;
 
@@ -914,39 +918,39 @@ function updateDoudizhuUI() {
   renderDoudizhuHand('doudizhu-opponent2-hand', doudizhuOpponent2Hand, false, false);
 
   if (doudizhuGameState === 'bidding') {
-    doudizhuCenterLabel.innerText = 'Landlord Cards';
+    if (doudizhuCenterLabel) doudizhuCenterLabel.innerText = 'Landlord Cards';
     renderDoudizhuHand('doudizhu-played-cards', doudizhuLandlordPile, false, true); // Landlord cards are face up
-    doudizhuCurrentPatternDiv.style.display = 'none'; // Hide current pattern during bidding
-    doudizhuPlayButton.style.display = 'none';
-    doudizhuPassButton.style.display = 'none';
-    doudizhuBiddingButtonsDiv.style.display = 'flex'; // Show bidding buttons (flex for row layout)
-    doudizhuResultDiv.innerText = `Player ${doudizhuCurrentBidderIndex === 0 ? 'You' : doudizhuCurrentBidderIndex === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn to bid.`;
+    if (doudizhuCurrentPatternDiv) doudizhuCurrentPatternDiv.style.display = 'none'; // Hide current pattern during bidding
+    if (doudizhuPlayButton) doudizhuPlayButton.style.display = 'none';
+    if (doudizhuPassButton) doudizhuPassButton.style.display = 'none';
+    if (doudizhuBiddingButtonsDiv) doudizhuBiddingButtonsDiv.style.display = 'flex'; // Show bidding buttons (flex for row layout)
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `Player ${doudizhuCurrentBidderIndex === 0 ? 'You' : doudizhuCurrentBidderIndex === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn to bid.`;
   } else if (doudizhuGameState === 'playing') {
-    doudizhuCenterLabel.innerText = 'Last Played Cards';
+    if (doudizhuCenterLabel) doudizhuCenterLabel.innerText = 'Last Played Cards';
     renderDoudizhuHand('doudizhu-played-cards', doudizhuLastPlayedCards, false, true); // Last played cards are face up
-    doudizhuCurrentPatternDiv.style.display = 'block'; // Show current pattern
-    doudizhuPatternTextSpan.innerText = doudizhuLastPlayedPattern ? doudizhuLastPlayedPattern.type + (doudizhuLastPlayedPattern.value ? ` (${doudizhuLastPlayedPattern.value})` : '') : 'None';
+    if (doudizhuCurrentPatternDiv) doudizhuCurrentPatternDiv.style.display = 'block'; // Show current pattern
+    if (doudizhuPatternTextSpan) doudizhuPatternTextSpan.innerText = doudizhuLastPlayedPattern ? doudizhuLastPlayedPattern.type + (doudizhuLastPlayedPattern.value ? ` (${doudizhuLastPlayedPattern.value})` : '') : 'None';
     
     // Control player action buttons based on current turn
     if (doudizhuCurrentTurn === 0) { // It's the player's turn
-      doudizhuPlayButton.style.display = 'inline-block';
-      doudizhuPassButton.style.display = 'inline-block';
-      doudizhuPlayButton.disabled = false; // Ensure enabled
-      doudizhuPassButton.disabled = false; // Ensure enabled
+      if (doudizhuPlayButton) doudizhuPlayButton.style.display = 'inline-block';
+      if (doudizhuPassButton) doudizhuPassButton.style.display = 'inline-block';
+      if (doudizhuPlayButton) doudizhuPlayButton.disabled = false; // Ensure enabled
+      if (doudizhuPassButton) doudizhuPassButton.disabled = false; // Ensure enabled
     } else { // It's an AI's turn
-      doudizhuPlayButton.style.display = 'none';
-      doudizhuPassButton.style.display = 'none';
-      doudizhuPlayButton.disabled = true; // Ensure disabled
-      doudizhuPassButton.disabled = true; // Ensure disabled
+      if (doudizhuPlayButton) doudizhuPlayButton.style.display = 'none';
+      if (doudizhuPassButton) doudizhuPassButton.style.display = 'none';
+      if (doudizhuPlayButton) doudizhuPlayButton.disabled = true; // Ensure disabled
+      if (doudizhuPassButton) doudizhuPassButton.disabled = true; // Ensure disabled
     }
-    doudizhuBiddingButtonsDiv.style.display = 'none'; // Hide bidding buttons
-    doudizhuResultDiv.innerText = `Landlord: ${doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2'}. Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn!`;
+    if (doudizhuBiddingButtonsDiv) doudizhuBiddingButtonsDiv.style.display = 'none'; // Hide bidding buttons
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `Landlord: ${doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2'}. Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn!`;
   }
 }
 
 function startDoudizhu() {
   showScreen('doudizhu-game-screen', 'Doudizhu'); // Use the new Doudizhu specific screen
-  doudizhuResultDiv.innerText = 'Dealing cards and starting bidding...';
+  if (doudizhuResultDiv) doudizhuResultDiv.innerText = 'Dealing cards and starting bidding...';
 
   // Initialize Doudizhu specific game state
   doudizhuDeck = new Deck({ numDecks: 1, includeJokers: true, gameType: 'doudizhu' });
@@ -958,7 +962,7 @@ function startDoudizhu() {
   // Ensure the deck has enough cards for this deal
   if (totalCards < (numCardsPerPlayer * 3)) {
     console.error("Not enough cards in deck for Doudizhu deal!");
-    doudizhuResultDiv.innerText = "Error: Not enough cards to start Doudizhu.";
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = "Error: Not enough cards to start Doudizhu.";
     return;
   }
 
@@ -1025,9 +1029,13 @@ function startDoudizhu() {
     doudizhuPlayAgainButton.innerText = 'Play Again';
     doudizhuPlayAgainButton.onclick = startDoudizhu;
     doudizhuPlayAgainButton.classList.add('doudizhu-action-button');
-    document.getElementById('doudizhu-game-area').appendChild(doudizhuPlayAgainButton);
+    // Ensure the button is appended to an existing element, e.g., doudizhu-game-area
+    const doudizhuGameArea = document.getElementById('doudizhu-game-area');
+    if (doudizhuGameArea) {
+      doudizhuGameArea.appendChild(doudizhuPlayAgainButton);
+    }
   }
-  doudizhuPlayAgainButton.style.display = 'none'; // Hide initially
+  if (doudizhuPlayAgainButton) doudizhuPlayAgainButton.style.display = 'none'; // Hide initially
 
   // Ensure player's play/pass buttons are disabled at the start of bidding
   if (doudizhuPlayButton) doudizhuPlayButton.disabled = true;
@@ -1084,7 +1092,7 @@ function aiMakeBid(playerIndex, hand) {
 // Handles a bid from a player (true for call, false for don't call)
 function handleBid(playerIndex, bid) {
   doudizhuBids[playerIndex] = bid;
-  doudizhuResultDiv.innerText = `Player ${playerIndex === 0 ? 'You' : playerIndex === 1 ? 'Opponent 1' : 'Opponent 2'} ${bid ? 'called' : 'didn\'t call'} landlord.`;
+  if (doudizhuResultDiv) doudizhuResultDiv.innerText = `Player ${playerIndex === 0 ? 'You' : playerIndex === 1 ? 'Opponent 1' : 'Opponent 2'} ${bid ? 'called' : 'didn\'t call'} landlord.`;
 
   // Move to next bidder
   doudizhuCurrentBidderIndex = (doudizhuCurrentBidderIndex + 1) % 3;
@@ -1095,7 +1103,7 @@ function handleBid(playerIndex, bid) {
 
   if (allBidsReceived || atLeastOneCalled) {
     if (calledLandlordPlayers.length === 0) {
-      doudizhuResultDiv.innerText = "No one called landlord. Restarting game...";
+      if (doudizhuResultDiv) doudizhuResultDiv.innerText = "No one called landlord. Restarting game...";
       setTimeout(startDoudizhu, 2000);
     } else if (calledLandlordPlayers.length === 1) {
       doudizhuLandlord = calledLandlordPlayers[0];
@@ -1138,7 +1146,7 @@ function assignLandlordCardsAndStartGame() {
   doudizhuLandlordPile = []; // Clear the landlord pile after assignment
 
   doudizhuGameState = 'playing';
-  doudizhuResultDiv.innerText = `Player ${doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2'} is the Landlord!`;
+  if (doudizhuResultDiv) doudizhuResultDiv.innerText = `Player ${doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2'} is the Landlord!`;
 
   // Set initial turn to the landlord
   doudizhuCurrentTurn = doudizhuLandlord;
@@ -1537,17 +1545,17 @@ function canPlay(newPattern, lastPattern) {
 // Function to check if any player has won
 function checkDoudizhuWinCondition() {
   if (doudizhuPlayerHand.length === 0) {
-    doudizhuResultDiv.innerText = 'You played all your cards! You win!';
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = 'You played all your cards! You win!';
     doudizhuGameState = 'game_over';
     return true;
   }
   if (doudizhuOpponent1Hand.length === 0) {
-    doudizhuResultDiv.innerText = 'Opponent 1 played all their cards! Opponent 1 wins!';
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = 'Opponent 1 played all their cards! Opponent 1 wins!';
     doudizhuGameState = 'game_over';
     return true;
   }
   if (doudizhuOpponent2Hand.length === 0) {
-    doudizhuResultDiv.innerText = 'Opponent 2 played all their cards! Opponent 2 wins!';
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = 'Opponent 2 played all their cards! Opponent 2 wins!';
     doudizhuGameState = 'game_over';
     return true;
   }
@@ -1575,7 +1583,7 @@ function playDoudizhuCards() {
   console.log("Selected cards (from DOM):", selectedCards.map(c => c.toString()));
 
   if (selectedCards.length === 0) {
-    doudizhuResultDiv.innerText = 'Please select cards to play.';
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = 'Please select cards to play.';
     console.log("No cards selected.");
     return;
   }
@@ -1583,7 +1591,7 @@ function playDoudizhuCards() {
   const newPattern = getPattern(selectedCards);
 
   if (!newPattern) {
-    doudizhuResultDiv.innerText = 'Invalid card pattern selected!';
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = 'Invalid card pattern selected!';
     console.log("Invalid pattern detected for selected cards.");
     return;
   }
@@ -1610,11 +1618,11 @@ function playDoudizhuCards() {
 
 
   if (canBeat) { // Use the canBeat flag here
-    doudizhuResultDiv.innerText = `You played: ${newPattern.type}`;
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `You played: ${newPattern.type}`;
     if (newPattern.type !== 'Rocket' && newPattern.type !== 'Bomb') {
-      doudizhuResultDiv.innerText += ` (Value: ${newPattern.value}).`;
+      if (doudizhuResultDiv) doudizhuResultDiv.innerText += ` (Value: ${newPattern.value}).`;
     } else {
-      doudizhuResultDiv.innerText += `.`;
+      if (doudizhuResultDiv) doudizhuResultDiv.innerText += `.`;
     }
     console.log("Play is valid. Removing cards from hand.");
 
@@ -1642,7 +1650,7 @@ function playDoudizhuCards() {
       nextDoudizhuTurn();
     }
   } else {
-    doudizhuResultDiv.innerText = `Cannot play that! ${newPattern.type} cannot beat ${doudizhuLastPlayedPattern ? doudizhuLastPlayedPattern.type : 'nothing'}.`;
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `Cannot play that! ${newPattern.type} cannot beat ${doudizhuLastPlayedPattern ? doudizhuLastPlayedPattern.type : 'nothing'}.`;
     console.log("Play is invalid. New pattern:", newPattern, "Last pattern:", doudizhuLastPlayedPattern);
     // Deselect cards if play is invalid
     selectedElements.forEach(el => el.classList.remove('selected'));
@@ -1653,7 +1661,7 @@ function playDoudizhuCards() {
 
 function passDoudizhuTurn() {
   console.log("PassDoudizhuTurn function called."); // Added debug log
-  doudizhuResultDiv.innerText = 'You passed your turn.';
+  if (doudizhuResultDiv) doudizhuResultDiv.innerText = 'You passed your turn.';
   console.log("Player passed turn.");
   // Clear selected cards if any
   const selectedElements = doudizhuPlayerHandDiv.querySelectorAll('.card.selected');
@@ -1687,14 +1695,14 @@ function nextDoudizhuTurn() {
   // means the turn has come back to the player who made the last successful play,
   // implying everyone else has passed.
   if (doudizhuConsecutivePasses >= 2 || (doudizhuPlayerWhoLastPlayed !== null && doudizhuCurrentTurn === doudizhuPlayerWhoLastPlayed)) {
-    doudizhuResultDiv.innerText = `New round can begin! Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn to start.`;
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `New round can begin! Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn to start.`;
     doudizhuLastPlayedPattern = null; // Clear the pattern to start a new round
     doudizhuLastPlayedCards = [];
     doudizhuConsecutivePasses = 0; // Reset pass counter
     doudizhuPlayerWhoLastPlayed = null; // Reset
     console.log("Round cleared. New round starting.");
   } else {
-    doudizhuResultDiv.innerText = `Landlord: ${doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2'}. Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn!`;
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `Landlord: ${doudizhuLandlord === 0 ? 'You' : doudizhuLandlord === 1 ? 'Opponent 1' : 'Opponent 2'}. Player ${doudizhuCurrentTurn === 0 ? 'You' : doudizhuCurrentTurn === 1 ? 'Opponent 1' : 'Opponent 2'}'s turn!`;
   }
 
   updateDoudizhuUI();
@@ -1756,11 +1764,11 @@ function doudizhuOpponentTurn() {
     doudizhuConsecutivePasses = 0;
     doudizhuPlayerWhoLastPlayed = doudizhuCurrentTurn;
 
-    doudizhuResultDiv.innerText = `Opponent ${doudizhuCurrentTurn === 1 ? '1' : '2'} played: ${play.pattern.type}`;
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `Opponent ${doudizhuCurrentTurn === 1 ? '1' : '2'} played: ${play.pattern.type}`;
     if (play.pattern.type !== 'Rocket' && play.pattern.type !== 'Bomb') {
-      doudizhuResultDiv.innerText += ` (Value: ${play.pattern.value}).`;
+      if (doudizhuResultDiv) doudizhuResultDiv.innerText += ` (Value: ${play.pattern.value}).`;
     } else {
-      doudizhuResultDiv.innerText += `.`;
+      if (doudizhuResultDiv) doudizhuResultDiv.innerText += `.`;
     }
 
 
@@ -1771,7 +1779,7 @@ function doudizhuOpponentTurn() {
 
   } else {
     console.log(`Opponent ${doudizhuCurrentTurn} passes.`);
-    doudizhuResultDiv.innerText = `Opponent ${doudizhuCurrentTurn === 1 ? '1' : '2'} passed.`;
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = `Opponent ${doudizhuCurrentTurn === 1 ? '1' : '2'} passed.`;
     doudizhuConsecutivePasses++;
   }
 
@@ -1856,7 +1864,7 @@ function findPossiblePlays(hand, lastPattern) {
     // If there are bombs and the last pattern wasn't a rocket, prioritize playing the smallest valid bomb.
     const smallestBeatingBomb = bombsOnly.sort((a, b) => a.pattern.value - b.pattern.value)
       .find(bomb => canPlay(bomb.pattern, lastPattern));
-    if (smallestBeomb) {
+    if (smallestBeatingBomb) {
       return [smallestBeatingBomb];
     }
   }
@@ -2086,6 +2094,6 @@ function findPossiblePlays(hand, lastPattern) {
 
 
 // Initial setup on page load (ensures menu is shown)
-// No DOMContentLoaded listener is needed here because the inline onclicks
-// in HTML will call the functions directly, and the script is deferred.
-returnToMenu(); // Ensure menu screen is visible initially
+document.addEventListener('DOMContentLoaded', () => {
+  returnToMenu(); // Ensure menu screen is visible initially
+});
