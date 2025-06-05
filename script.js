@@ -171,7 +171,7 @@ let focusedCardIndex = -1; // Used by Deck Viewer
 let blackjackDeck = null;
 let playerHand = [];
 let dealerHand = [];
-let gameStatus = 'playing'; // 'playing', 'player_blackjack', 'dealer_blackjack', 'player_bust', 'dealer_bust', 'push', 'player_win', 'dealer_5_card_charlie', 'dealer_blackjack_beats_charlie'
+let gameStatus = 'playing'; // 'playing', 'player_blackjack', 'dealer_blackjack', 'player_bust', 'dealer_bust', 'push', 'player_win', 'player_5_card_charlie', 'dealer_blackjack_beats_charlie'
 
 // NEW GLOBAL VARIABLES FOR WIN COUNTERS
 let playerWins = 0;
@@ -570,16 +570,18 @@ function startBlackjack() {
     hitButton = document.createElement('button');
     hitButton.id = 'hit-button';
     hitButton.innerText = 'Hit';
-    hitButton.onclick = hit;
     hitButton.classList.add('game-action-button'); // Apply general button styling
     document.getElementById('game-area').appendChild(hitButton);
 
     standButton = document.createElement('button');
     standButton.id = 'stand-button';
     standButton.innerText = 'Stand';
-    standButton.onclick = stand;
     standButton.classList.add('game-action-button'); // Apply general button styling
     document.getElementById('game-area').appendChild(standButton);
+
+    // Attach event listeners for Hit/Stand here
+    hitButton.onclick = hit;
+    standButton.onclick = stand;
   }
 
   // Ensure "Play Again" button is hidden at the start of a new round
@@ -2455,4 +2457,10 @@ function startDoudizhuGameInstance(playerOrder, initialLandlordIndex) {
 // Initial setup on page load (ensures menu is shown)
 document.addEventListener('DOMContentLoaded', () => {
   returnToMenu(); // Ensure menu screen is visible initially
+
+  // Attach event listener for the Doudizhu Multiplayer button
+  const doudizhuMultiplayerButton = document.getElementById('play-doudizhu-multiplayer-button');
+  if (doudizhuMultiplayerButton) {
+    doudizhuMultiplayerButton.addEventListener('click', showDoudizhuMultiplayer);
+  }
 });
