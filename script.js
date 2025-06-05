@@ -171,7 +171,7 @@ let focusedCardIndex = -1; // Used by Deck Viewer
 let blackjackDeck = null;
 let playerHand = [];
 let dealerHand = [];
-let gameStatus = 'playing'; // 'playing', 'player_blackjack', 'dealer_blackjack', 'player_bust', 'dealer_bust', 'push', 'player_win', 'dealer_win', 'player_5_card_charlie', 'dealer_blackjack_beats_charlie'
+let gameStatus = 'playing'; // 'playing', 'player_blackjack', 'dealer_blackjack', 'player_bust', 'dealer_bust', 'push', 'player_win', 'dealer_5_card_charlie', 'dealer_blackjack_beats_charlie'
 
 // NEW GLOBAL VARIABLES FOR WIN COUNTERS
 let playerWins = 0;
@@ -237,6 +237,20 @@ let doudizhuDontCallButton;
 // Doudizhu Play Again Button (new)
 let doudizhuPlayAgainButton;
 
+// --- Doudizhu Multiplayer specific variables and DOM references (ISOLATED) ---
+const doudizhuMultiplayerScreen = document.getElementById('doudizhu-multiplayer-screen');
+let createLobbyButton;
+let joinLobbyButton;
+let lobbyCodeInput;
+let lobbyPlayerList;
+let startGameButton;
+let lobbyStatusMessage;
+let currentLobbyCode = null; // The code for the lobby this client is in
+let myPlayerId = 'Player-' + Math.random().toString(36).substring(2, 8); // Unique ID for this browser instance
+let currentLobbyPlayers = []; // Array of {id: '...', role: '...', isHost: bool}
+
+// BroadcastChannel for inter-tab communication (pseudo-multiplayer)
+const lobbyChannel = new BroadcastChannel('doudizhu-lobby');
 
 // --- Helper Functions (general purpose) ---
 
@@ -244,7 +258,7 @@ let doudizhuPlayAgainButton;
 function updateBackButton(text, handler) {
   // This function now specifically targets the back button on the *currently active* game screen.
   // We need to ensure the correct back button is updated based on the active screen.
-  // The HTML has two back buttons: one for game-screen, one for doudizhu-game-screen.
+  // The HTML has two back buttons: one for game-screen, one for doudizhu-game-screen, one for multiplayer
   // We'll update the one that's currently visible.
   if (gameScreen && gameScreen.style.display === 'block' && backButton) {
     backButton.innerText = text;
@@ -252,6 +266,9 @@ function updateBackButton(text, handler) {
   } else if (doudizhuGameScreen && doudizhuGameScreen.style.display === 'block' && doudizhuBackButton) {
     doudizhuBackButton.innerText = text;
     doudizhuBackButton.onclick = handler;
+  } else if (doudizhuMultiplayerScreen && doudizhuMultiplayerScreen.style.display === 'block' && document.getElementById('multiplayer-back-button')) {
+    document.getElementById('multiplayer-back-button').innerText = text;
+    document.getElementById('multiplayer-back-button').onclick = handler;
   }
 }
 
@@ -264,7 +281,7 @@ function updateCardCounts() {
 // Helper to toggle visibility of player info divs (primarily for War/Blackjack)
 function togglePlayerInfo(show) {
   if (playerInfoDiv) playerInfoDiv.style.display = show ? 'flex' : 'none';
-  if (enemyInfoDiv) enemyInfoDiv.display = show ? 'flex' : 'none';
+  if (enemyInfoDiv) enemyInfoDiv.style.display = show ? 'flex' : 'none';
 }
 
 
@@ -755,6 +772,7 @@ function returnToMenu() {
   document.getElementById('menu-screen').style.display = 'block';
   if (gameScreen) gameScreen.style.display = 'none'; // Hide generic game screen
   if (doudizhuGameScreen) doudizhuGameScreen.style.display = 'none'; // Hide Doudizhu game screen
+  if (doudizhuMultiplayerScreen) doudizhuMultiplayerScreen.style.display = 'none'; // Hide Multiplayer screen
 
   // Reset game state for a clean return to menu for all games
   playerDeck = [];
@@ -820,6 +838,13 @@ function returnToMenu() {
   // Ensure Doudizhu play/pass buttons are enabled for next game start
   if (doudizhuPlayButton) doudizhuPlayButton.disabled = false;
   if (doudizhuPassButton) doudizhuPassButton.disabled = false;
+
+  // Reset Multiplayer variables
+  currentLobbyCode = null;
+  currentLobbyPlayers = [];
+  if (lobbyStatusMessage) lobbyStatusMessage.innerText = '';
+  if (lobbyPlayerList) lobbyPlayerList.innerHTML = '';
+  if (startGameButton) startGameButton.style.display = 'none'; // Hide start game button
 }
 
 // Centralized function to show a specific game screen
@@ -828,6 +853,8 @@ function showScreen(screenId, title) {
   document.getElementById('menu-screen').style.display = 'none';
   if (gameScreen) gameScreen.style.display = 'none'; // Generic game screen for War/Blackjack/Deck Viewer
   if (doudizhuGameScreen) doudizhuGameScreen.style.display = 'none'; // New Doudizhu screen
+  if (doudizhuMultiplayerScreen) doudizhuMultiplayerScreen.style.display = 'none'; // Multiplayer screen
+
 
   // Show the requested screen
   const targetScreen = document.getElementById(screenId);
@@ -841,6 +868,8 @@ function showScreen(screenId, title) {
     gameTitle.innerText = title;
   } else if (screenId === 'doudizhu-game-screen' && doudizhuGameTitle) {
     doudizhuGameTitle.innerText = title;
+  } else if (screenId === 'doudizhu-multiplayer-screen' && document.getElementById('multiplayer-game-title')) {
+    document.getElementById('multiplayer-game-title').innerText = title;
   }
 
   // Reset common game controls (for War/Blackjack)
@@ -2090,6 +2119,336 @@ function findPossiblePlays(hand, lastPattern) {
   });
 
   return plays;
+}
+
+// --- Doudizhu Multiplayer Functions ---
+
+function showDoudizhuMultiplayer() {
+  showScreen('doudizhu-multiplayer-screen', 'Doudizhu Multiplayer');
+  updateBackButton('Back to Menu', returnToMenu);
+
+  // Get references to multiplayer buttons
+  createLobbyButton = document.getElementById('create-lobby-button');
+  joinLobbyButton = document.getElementById('join-lobby-button');
+  lobbyCodeInput = document.getElementById('lobby-code-input');
+  lobbyPlayerList = document.getElementById('lobby-player-list');
+  startGameButton = document.getElementById('start-game-button');
+  lobbyStatusMessage = document.getElementById('lobby-status-message');
+  const lobbyControls = document.getElementById('lobby-controls');
+  const lobbyView = document.getElementById('lobby-view');
+
+  // Set up event listeners for multiplayer buttons
+  if (createLobbyButton) createLobbyButton.onclick = createLobby;
+  if (joinLobbyButton) joinLobbyButton.onclick = joinLobby;
+  if (startGameButton) startGameButton.onclick = startMultiplayerDoudizhu;
+
+
+  // Initial state for multiplayer screen
+  if (lobbyControls) lobbyControls.style.display = 'flex';
+  if (lobbyView) lobbyView.style.display = 'none';
+  if (startGameButton) startGameButton.style.display = 'none';
+  if (lobbyStatusMessage) lobbyStatusMessage.innerText = 'Create or Join a Lobby';
+  if (lobbyCodeInput) lobbyCodeInput.value = '';
+  if (lobbyPlayerList) lobbyPlayerList.innerHTML = '';
+
+  // Listen for messages from other tabs/windows
+  lobbyChannel.onmessage = handleLobbyMessage;
+
+  // Attempt to re-join a lobby if one was active in localStorage
+  const storedLobby = localStorage.getItem('doudizhuLobby');
+  if (storedLobby) {
+      const lobby = JSON.parse(storedLobby);
+      if (lobby.code && lobby.players && lobby.players.some(p => p.id === myPlayerId)) {
+          // If this player is part of a stored lobby, rejoin it
+          currentLobbyCode = lobby.code;
+          currentLobbyPlayers = lobby.players;
+          updateLobbyUI();
+          if (lobbyControls) lobbyControls.style.display = 'none';
+          if (lobbyView) lobbyView.style.display = 'block';
+          if (lobbyStatusMessage) lobbyStatusMessage.innerText = `Joined Lobby: ${currentLobbyCode}`;
+      }
+  }
+}
+
+function generateLobbyCode() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase(); // 6 character code
+}
+
+function createLobby() {
+  currentLobbyCode = generateLobbyCode();
+  currentLobbyPlayers = [{ id: myPlayerId, name: 'Player 1 (Host)', isHost: true }];
+  updateLobbyLocalStorage();
+  lobbyChannel.postMessage({ type: 'lobbyCreated', code: currentLobbyCode, players: currentLobbyPlayers });
+  updateLobbyUI();
+  if (document.getElementById('lobby-controls')) document.getElementById('lobby-controls').style.display = 'none';
+  if (document.getElementById('lobby-view')) document.getElementById('lobby-view').style.display = 'block';
+  if (lobbyStatusMessage) lobbyStatusMessage.innerText = `Lobby created! Code: ${currentLobbyCode}. Share this with other players (open new tabs).`;
+  console.log(`Lobby created: ${currentLobbyCode}`);
+}
+
+function joinLobby() {
+  const code = lobbyCodeInput.value.trim().toUpperCase();
+  if (!code) {
+    if (lobbyStatusMessage) lobbyStatusMessage.innerText = 'Please enter a lobby code.';
+    return;
+  }
+
+  const storedLobby = localStorage.getItem('doudizhuLobby');
+  if (storedLobby) {
+    const lobby = JSON.parse(storedLobby);
+    if (lobby.code === code) {
+        if (lobby.players.length >= 3) {
+            if (lobbyStatusMessage) lobbyStatusMessage.innerText = 'Lobby is full!';
+            return;
+        }
+        if (lobby.players.some(p => p.id === myPlayerId)) {
+            if (lobbyStatusMessage) lobbyStatusMessage.innerText = 'You are already in this lobby.';
+            currentLobbyCode = code;
+            currentLobbyPlayers = lobby.players;
+            updateLobbyUI();
+            if (document.getElementById('lobby-controls')) document.getElementById('lobby-controls').style.display = 'none';
+            if (document.getElementById('lobby-view')) document.getElementById('lobby-view').style.display = 'block';
+            return;
+        }
+
+        currentLobbyCode = code;
+        currentLobbyPlayers = lobby.players;
+        currentLobbyPlayers.push({ id: myPlayerId, name: `Player ${currentLobbyPlayers.length + 1}`, isHost: false });
+        updateLobbyLocalStorage();
+        lobbyChannel.postMessage({ type: 'playerJoined', code: currentLobbyCode, players: currentLobbyPlayers });
+        updateLobbyUI();
+        if (document.getElementById('lobby-controls')) document.getElementById('lobby-controls').style.display = 'none';
+        if (document.getElementById('lobby-view')) document.getElementById('lobby-view').style.display = 'block';
+        if (lobbyStatusMessage) lobbyStatusMessage.innerText = `Joined Lobby: ${currentLobbyCode}`;
+        console.log(`Joined lobby: ${currentLobbyCode}`);
+    } else {
+      if (lobbyStatusMessage) lobbyStatusMessage.innerText = 'Invalid lobby code or lobby does not exist.';
+      console.log('Invalid lobby code.');
+    }
+  } else {
+    if (lobbyStatusMessage) lobbyStatusMessage.innerText = 'No lobby found with that code.';
+    console.log('No lobby found.');
+  }
+}
+
+function updateLobbyUI() {
+  if (lobbyPlayerList) {
+    lobbyPlayerList.innerHTML = '';
+    currentLobbyPlayers.forEach(player => {
+      const li = document.createElement('li');
+      li.innerText = `${player.name} (${player.id.substring(0,6)}) ${player.isHost ? '(Host)' : ''}`;
+      lobbyPlayerList.appendChild(li);
+    });
+  }
+
+  // Enable Start Game button only if 3 players are in the lobby and this client is the host
+  const isHost = currentLobbyPlayers.find(p => p.id === myPlayerId && p.isHost);
+  if (startGameButton) {
+    if (isHost && currentLobbyPlayers.length === 3) {
+      startGameButton.style.display = 'inline-block';
+      startGameButton.disabled = false;
+      if (lobbyStatusMessage) lobbyStatusMessage.innerText = `Lobby ${currentLobbyCode}: ${currentLobbyPlayers.length}/3 players. Ready to start!`;
+    } else {
+      startGameButton.style.display = 'none';
+      startGameButton.disabled = true;
+      if (currentLobbyCode) {
+         if (lobbyStatusMessage) lobbyStatusMessage.innerText = `Lobby ${currentLobbyCode}: ${currentLobbyPlayers.length}/3 players. Waiting for players...`;
+      }
+    }
+  }
+}
+
+function updateLobbyLocalStorage() {
+  localStorage.setItem('doudizhuLobby', JSON.stringify({ code: currentLobbyCode, players: currentLobbyPlayers }));
+}
+
+function handleLobbyMessage(event) {
+    const data = event.data;
+    if (data.type === 'lobbyCreated' || data.type === 'playerJoined' || data.type === 'playerLeft') {
+        // Only update if the message is for the lobby we are currently in or trying to join
+        if (currentLobbyCode === data.code || (!currentLobbyCode && data.type === 'lobbyCreated')) {
+            currentLobbyCode = data.code;
+            currentLobbyPlayers = data.players;
+            updateLobbyUI();
+
+            // If a game starts, transition all tabs
+            if (data.type === 'gameStarted') {
+                startDoudizhuMultiplayerGame(data.playerOrder, data.landlordIndex);
+            }
+        }
+    } else if (data.type === 'gameStarted' && currentLobbyCode === data.code) {
+        startDoudizhuMultiplayerGame(data.playerOrder, data.landlordIndex);
+    } else if (data.type === 'lobbyCleared') {
+        // If the host leaves or game ends, clear lobby data
+        if (currentLobbyCode === data.code) {
+            currentLobbyCode = null;
+            currentLobbyPlayers = [];
+            localStorage.removeItem('doudizhuLobby');
+            if (document.getElementById('lobby-controls')) document.getElementById('lobby-controls').style.display = 'flex';
+            if (document.getElementById('lobby-view')) document.getElementById('lobby-view').style.display = 'none';
+            if (lobbyStatusMessage) lobbyStatusMessage.innerText = 'Lobby closed or game ended. Create or Join a Lobby.';
+        }
+    }
+}
+
+// Ensure that when a tab closes, it tries to remove itself from the lobby
+window.addEventListener('beforeunload', () => {
+    if (currentLobbyCode && myPlayerId) {
+        const storedLobby = localStorage.getItem('doudizhuLobby');
+        if (storedLobby) {
+            let lobby = JSON.parse(storedLobby);
+            lobby.players = lobby.players.filter(p => p.id !== myPlayerId);
+            if (lobby.players.length === 0) {
+                localStorage.removeItem('doudizhuLobby');
+                lobbyChannel.postMessage({ type: 'lobbyCleared', code: lobby.code });
+            } else {
+                localStorage.setItem('doudizhuLobby', JSON.stringify(lobby));
+                lobbyChannel.postMessage({ type: 'playerLeft', code: lobby.code, players: lobby.players });
+            }
+        }
+    }
+});
+
+function startMultiplayerDoudizhu() {
+    if (currentLobbyPlayers.length !== 3) {
+        if (lobbyStatusMessage) lobbyStatusMessage.innerText = 'Need 3 players to start the game!';
+        return;
+    }
+
+    // Determine random player order
+    const playerOrder = shuffleArray([...currentLobbyPlayers.map(p => p.id)]);
+    const landlordIndex = Math.floor(Math.random() * 3); // Randomly choose initial landlord
+
+    // Broadcast that the game has started
+    lobbyChannel.postMessage({
+        type: 'gameStarted',
+        code: currentLobbyCode,
+        playerOrder: playerOrder,
+        landlordIndex: landlordIndex
+    });
+
+    // Start the game in this tab
+    startDoudizhuGameInstance(playerOrder, landlordIndex);
+}
+
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+
+// This function is called by all clients in the lobby when game starts
+function startDoudizhuGameInstance(playerOrder, initialLandlordIndex) {
+    showScreen('doudizhu-game-screen', 'Doudizhu Online');
+
+    // Assign player roles and IDs for the game instance
+    let myPlayerIndex = playerOrder.indexOf(myPlayerId);
+    if (myPlayerIndex === -1) {
+        console.error("My player ID not found in the game order. This should not happen.");
+        // Fallback to single player if something went wrong
+        startDoudizhu();
+        return;
+    }
+
+    // For Doudizhu, there are 3 players. We'll map them based on playerOrder
+    // Player 0: This client (myPlayerId)
+    // Player 1: The next player in the order
+    // Player 2: The player after that
+    // This simplifies the Doudizhu game logic, even though it's still local simulation.
+    // In a real multiplayer game, this would be handled by the server.
+
+    // Reset single player Doudizhu specific variables (important to ensure clean slate)
+    doudizhuDeck = null;
+    doudizhuPlayerHand = [];
+    doudizhuOpponent1Hand = [];
+    doudizhuOpponent2Hand = [];
+    doudizhuLandlordPile = [];
+    doudizhuPlayedCards = [];
+    doudizhuGameState = 'playing'; // Starts directly in playing state
+    doudizhuLandlord = initialLandlordIndex; // Set landlord based on broadcasted info
+    doudizhuBids = [];
+    doudizhuCurrentBidderIndex = 0; // Not used in playing phase, handled by doudizhuCurrentTurn
+    doudizhuLastPlayedPattern = null;
+    doudizhuLastPlayedCards = [];
+    doudizhuCurrentTurn = 0; // The first player in playerOrder starts
+    doudizhuConsecutivePasses = 0;
+    doudizhuPlayerWhoLastPlayed = null;
+
+    if (doudizhuResultDiv) doudizhuResultDiv.innerText = 'Dealing cards...';
+
+    // Initialize Doudizhu specific game state for multiplayer
+    const deck = new Deck({ numDecks: 1, includeJokers: true, gameType: 'doudizhu' });
+    deck.shuffle();
+
+    const allCards = [...deck.cards]; // Get all cards from the deck
+    const numCardsPerPlayer = 17;
+
+    // Distribute cards for 3 players
+    const hands = [[], [], []]; // Player 0, Player 1, Player 2
+    for (let i = 0; i < numCardsPerPlayer; i++) {
+        hands[0].push(allCards.shift());
+        hands[1].push(allCards.shift());
+        hands[2].push(allCards.shift());
+    }
+    doudizhuLandlordPile = allCards; // Remaining 3 cards are landlord pile
+
+    // Assign hands based on player order (myPlayerId will be playerHand)
+    doudizhuPlayerHand = hands[playerOrder.indexOf(myPlayerId)];
+    doudizhuOpponent1Hand = hands[playerOrder.filter(id => id !== myPlayerId)[0]];
+    doudizhuOpponent2Hand = hands[playerOrder.filter(id => id !== myPlayerId)[1]];
+
+    // Sort player's hand for display
+    doudizhuPlayerHand.sort((a, b) => a.value - b.value);
+    doudizhuOpponent1Hand.sort((a, b) => a.value - b.value); // Sort for AI logic
+    doudizhuOpponent2Hand.sort((a, b) => a.value - b.value); // Sort for AI logic
+
+
+    // Add landlord pile to the chosen landlord's hand
+    const landlordId = playerOrder[doudizhuLandlord];
+    if (landlordId === myPlayerId) {
+        doudizhuPlayerHand.push(...doudizhuLandlordPile);
+        doudizhuPlayerHand.sort((a, b) => a.value - b.value);
+    } else if (landlordId === playerOrder.filter(id => id !== myPlayerId)[0]) {
+        doudizhuOpponent1Hand.push(...doudizhuLandlordPile);
+        doudizhuOpponent1Hand.sort((a, b) => a.value - b.value);
+    } else { // landlordId === playerOrder.filter(id => id !== myPlayerId)[1]
+        doudizhuOpponent2Hand.push(...doudizhuLandlordPile);
+        doudizhuOpponent2Hand.sort((a, b) => a.value - b.value);
+    }
+    doudizhuLandlordPile = []; // Clear the landlord pile
+
+    // Map the global doudizhuCurrentTurn (0, 1, 2) to the actual player IDs
+    // and back again for decision making.
+    // For now, we assume doudizhuCurrentTurn (0,1,2) maps to Player (0), Opponent1 (1), Opponent2 (2)
+    // based on their position in the shuffled `playerOrder`.
+
+    // Set initial turn to the actual landlord's index in the `playerOrder` array
+    doudizhuCurrentTurn = doudizhuLandlord;
+
+
+    // Hide bidding buttons (already hidden by showScreen for a playing state)
+    if (doudizhuBiddingButtonsDiv) doudizhuBiddingButtonsDiv.style.display = 'none';
+    // Show play/pass buttons (will be hidden by updateDoudizhuUI for AI turns)
+    if (doudizhuPlayButton) doudizhuPlayButton.style.display = 'inline-block';
+    if (doudizhuPassButton) doudizhuPassButton.style.display = 'inline-block';
+
+    updateDoudizhuUI(); // Initial UI update for playing phase
+
+    // Check whose turn it is globally and initiate the play
+    if (playerOrder[doudizhuCurrentTurn] === myPlayerId) {
+        // It's this client's turn (player 0)
+        if (doudizhuPlayButton) doudizhuPlayButton.disabled = false;
+        if (doudizhuPassButton) doudizhuPassButton.disabled = false;
+        if (doudizhuResultDiv) doudizhuResultDiv.innerText = 'It\'s your turn to play!';
+    } else {
+        // It's an AI opponent's turn (simulate for other tabs)
+        if (doudizhuPlayButton) doudizhuPlayButton.disabled = true;
+        if (doudizhuPassButton) doudizhuPassButton.disabled = true;
+        nextDoudizhuTurn(); // This will trigger AI logic with delays
+    }
 }
 
 
